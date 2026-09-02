@@ -191,6 +191,7 @@ a:hover { text-decoration: underline; }
   gap: 20px;
   align-items: start;
 }
+.col-stack { display: grid; gap: 20px; align-content: start; }
 .field { margin-bottom: 18px; }
 .field label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; }
 .field .hint { font-weight: 400; color: var(--text-2); font-size: 0.8rem; }
@@ -233,6 +234,33 @@ a:hover { text-decoration: underline; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
 
+/* ---------- 分段控件 ---------- */
+.seg {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+}
+.seg-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 7px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+}
+.seg-btn:hover { color: var(--accent); }
+.seg-btn.active { background: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+.mode-hint { font-size: 0.78rem; color: var(--text-2); margin: 8px 0 0; line-height: 1.6; }
+
+/* ---------- 电路拓扑图 ---------- */
 .results-head {
   display: flex;
   align-items: baseline;
@@ -240,6 +268,43 @@ a:hover { text-decoration: underline; }
   flex-wrap: wrap;
   gap: 8px;
 }
+.legend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--text-2); }
+.legend .lg {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+.lg-known { background: var(--text-2); }
+.lg-comp { background: var(--accent); }
+
+.schem-wrap { overflow-x: auto; margin-top: 10px; }
+.schem { display: block; width: 100%; min-width: 500px; height: auto; }
+.schem text { font-family: inherit; }
+.schem .wire { stroke: var(--text-2); stroke-width: 2; fill: none; }
+.schem .res-body { fill: var(--bg); stroke: var(--text-2); stroke-width: 1.8; }
+.schem .node-dot { fill: var(--text-2); }
+.schem .port-dot { fill: var(--surface); stroke: var(--text-2); stroke-width: 2; }
+.schem .port-name { font-size: 14px; fill: var(--text-2); }
+.schem .port-value {
+  font-size: 15.5px;
+  font-weight: 600;
+  fill: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.schem .anno-name { font-size: 14px; fill: var(--text-2); }
+.schem .anno-value {
+  font-size: 17.5px;
+  font-weight: 700;
+  fill: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.schem .db-badge { font-size: 20px; font-weight: 700; fill: var(--text); }
+.schem .computed { fill: var(--accent); }
+.schem .anno-name.computed { fill: var(--text-2); }
 .summary { color: var(--text-2); font-size: 0.85rem; }
 
 .resistor-grid {
@@ -262,6 +327,8 @@ a:hover { text-decoration: underline; }
   font-variant-numeric: tabular-nums;
 }
 .resistor-card .series { font-size: 0.76rem; color: var(--text-2); margin-top: 4px; }
+
+.panel .result-sub { margin: 24px 0 10px; }
 
 .power-table { width: 100%; border-collapse: collapse; margin-top: 4px; font-size: 0.9rem; }
 .power-table th,
