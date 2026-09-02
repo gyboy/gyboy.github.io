@@ -11,6 +11,13 @@
   3. 打开 /assets/js/pages.js，在 SITE_PAGES 数组里加一条记录，
      首页目录会自动出现新卡片
 
+  多语言说明：
+  - 静态文本用 data-i18n="key"（纯文本）或 data-i18n-html="key"
+    （富文本），词典加在 /assets/js/i18n.js 的 I18N_DICT 里；
+  - 页面动态文本用 I18N.lang() / I18N.t(key)，并监听 'langchange'
+    事件重渲染；
+  - 浏览器标签页标题：<body data-i18n-doc="key">。
+
   详细说明见仓库根目录 MAINTENANCE.md
   ════════════════════════════════════════════════════════════
 -->
@@ -34,7 +41,8 @@
 <body>
   <header class="site-header">
     <div class="container header-inner">
-      <a class="back-link" href="/">← 返回首页</a>
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
       <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
     </div>
   </header>
@@ -43,7 +51,8 @@
     <h1 class="page-title">页面标题</h1>
     <p class="page-subtitle">一句话副标题 / 简介。</p>
 
-    <!-- 正文从这里开始，可以直接复用 .panel 卡片容器 -->
+    <!-- 正文从这里开始，可以直接复用 .panel 卡片容器；
+         需要多语言的元素加 data-i18n="key"（词典见 /assets/js/i18n.js） -->
     <div class="panel">
       <p>在这里写正文内容……</p>
     </div>
@@ -51,13 +60,15 @@
 
   <footer class="site-footer">
     <div class="container">
-      © <span id="year">2026</span> Gyboy · <a href="/">返回目录</a>
+      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
     </div>
   </footer>
 
+  <script src="/assets/js/i18n.js"></script>
   <script src="/assets/js/common.js"></script>
   <script>
-    /* 页面专属脚本写在这里 */
+    /* 页面专属脚本写在这里；
+       动态文本可参考 tools/pi-attenuator/ 的双语写法（{ zh, en } + langchange） */
   </script>
 </body>
 </html>

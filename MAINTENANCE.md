@@ -97,3 +97,29 @@ git push
 | 新页面打开是 404 | 检查 `pages.js` 里的 `path` 与实际文件夹路径是否一致（结尾带 `/`） |
 | 样式没生效 | 确认页面引用的是 `/assets/css/style.css`（根路径开头） |
 | 想换访问域名 | 在仓库 Settings → Pages 里绑定自定义域名，并添加 `CNAME` 文件 |
+
+---
+
+## 七、页面多语言（中文 / English）
+
+全站由 `/assets/js/i18n.js` 统一驱动：语言保存在 localStorage（键名 `gyboy-lang`），首次访问跟随浏览器语言；顶栏 `EN` / `中` 按钮切换，切换后派发 `langchange` 事件。
+
+**新页面接入多语言（模板已内置）：**
+
+1. 页面需在 `common.js` 之前引入 `<script src="/assets/js/i18n.js"></script>`，并在顶栏放置切换按钮：
+
+   ```html
+   <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+   <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme">🌙</button>
+   ```
+
+2. **静态文本**：元素加 `data-i18n="key"`（纯文本）或 `data-i18n-html="key"`（含 `<code>/<sub>/<a>` 的富文本），并把词条加进 `i18n.js` 的 `I18N_DICT`（`{ zh: '…', en: '…' }`）。浏览器标签页标题用 `<body data-i18n-doc="key">`。
+3. **动态文本**（JS 拼出来的数值标签、错误提示等）：用 `I18N.lang()` 取当前语言、`{ zh, en }` 双语对象存文案，并监听事件重渲染：
+
+   ```js
+   document.addEventListener('langchange', function () { /* 重新渲染动态部分 */ });
+   ```
+
+4. 首页目录卡片的 `title / desc / tag` 直接写成 `{ zh, en }` 对象（见 `pages.js`），`common.js` 会自动按语言渲染。
+
+参考实现：`tools/pi-attenuator/`（拓扑图 + 双模式 + 双语）与 `tools/rf-power-voltage/`（波形图 + 双模式 + 双语）。

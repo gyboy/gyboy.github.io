@@ -16,22 +16,23 @@
   </script>
   <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body>
+<body data-i18n-doc="home.doc">
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="/">Gyboy 的小站</a>
+      <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
       <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
     </div>
   </header>
 
   <main class="container">
     <section class="hero">
-      <h1>你好，这里是 Gyboy 👋</h1>
-      <p>我的个人目录站 —— 收录做过的各类小工具与页面，持续更新中。</p>
+      <h1 data-i18n="home.hero.title">你好，这里是 Gyboy 👋</h1>
+      <p data-i18n="home.hero.sub">我的个人目录站 —— 收录做过的各类小工具与页面，持续更新中。</p>
     </section>
 
     <section>
-      <h2 class="section-title">目录</h2>
+      <h2 class="section-title" data-i18n="home.section">目录</h2>
       <div id="page-grid" class="card-grid"></div>
       <noscript><p class="empty-tip">请启用 JavaScript 以查看目录。</p></noscript>
     </section>
@@ -39,10 +40,11 @@
 
   <footer class="site-footer">
     <div class="container">
-      © <span id="year">2026</span> Gyboy · 由 <a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> 托管
+      © <span id="year">2026</span> Gyboy · <span data-i18n-html="footer.hosted">由 <a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> 托管</span>
     </div>
   </footer>
 
+  <script src="/assets/js/i18n.js"></script>
   <script src="/assets/js/pages.js"></script>
   <script src="/assets/js/common.js"></script>
 </body>

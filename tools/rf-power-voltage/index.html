@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RF 功率·电压换算 · Gyboy 的小站</title>
+  <meta name="description" content="RF 功率与电压在线换算：正弦波 / 方波（双极性）下 W、dBm 与峰峰值、有效值、峰值、整流平均值双向互算，波形图实时标注电平，附 dBV / dBµV 换算。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <script>
+    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
+    (function () {
+      var t = localStorage.getItem('gyboy-theme');
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body data-i18n-doc="rf.doc">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+      <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+    </div>
+  </header>
+
+  <main class="container page-main">
+    <h1 class="page-title" data-i18n="rf.h1">RF 功率 · 电压换算</h1>
+    <p class="page-subtitle" data-i18n="rf.subtitle">
+      RF Power Converter —— 在正弦波与方波（双极性）下进行功率与电压的双向换算：W / dBm 与峰峰值、有效值、峰值、
+      整流平均值互算，波形图实时标注电平。
+    </p>
+
+    <div class="calc-grid">
+      <!-- ============ 输入区 ============ -->
+      <section class="panel">
+        <h2 data-i18n="panel.settings">参数设置</h2>
+
+        <div class="field">
+          <label data-i18n="rf.waveType">波形</label>
+          <div class="seg" id="seg-wave">
+            <button type="button" class="seg-btn active" data-wave="sine" data-i18n="rf.sine">正弦波</button>
+            <button type="button" class="seg-btn" data-wave="square" data-i18n="rf.square">方波</button>
+          </div>
+          <p class="mode-hint" id="wave-hint"></p>
+        </div>
+
+        <div class="field">
+          <label data-i18n="rf.modeType">计算模式</label>
+          <div class="seg" id="seg-mode">
+            <button type="button" class="seg-btn active" data-mode="pv" data-i18n="rf.modePV">功率 → 电压</button>
+            <button type="button" class="seg-btn" data-mode="vp" data-i18n="rf.modeVP">电压 → 功率</button>
+          </div>
+        </div>
+
+        <!-- 正算：功率 → 电压 -->
+        <div id="panel-forward">
+          <div class="field">
+            <label for="pv" data-i18n="rf.pLabel">功率 P</label>
+            <div class="input-wrap">
+              <input id="pv" type="number" value="20" step="any" inputmode="decimal">
+            </div>
+            <div class="seg" id="seg-punit" style="margin-top: 8px;">
+              <button type="button" class="seg-btn" data-u="w">W</button>
+              <button type="button" class="seg-btn" data-u="mw">mW</button>
+              <button type="button" class="seg-btn active" data-u="dbm">dBm</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 反算：电压 → 功率 -->
+        <div id="panel-reverse" hidden>
+          <div class="field">
+            <label for="vv" data-i18n="rf.vLabel">电压 V</label>
+            <div class="input-wrap">
+              <input id="vv" type="number" value="6.3246" min="0" step="any" inputmode="decimal">
+            </div>
+            <div class="seg" id="seg-vtype" style="margin-top: 8px;">
+              <button type="button" class="seg-btn active" data-t="vpp">Vpp</button>
+              <button type="button" class="seg-btn" data-t="vrms">Vrms</button>
+              <button type="button" class="seg-btn" data-t="vp">Vₚ</button>
+              <button type="button" class="seg-btn" data-t="vavg">Vavg</button>
+            </div>
+            <div class="seg" id="seg-vunit" style="margin-top: 8px;">
+              <button type="button" class="seg-btn active" data-u="v">V</button>
+              <button type="button" class="seg-btn" data-u="mv">mV</button>
+              <button type="button" class="seg-btn" data-u="uv">µV</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="z0"><span data-i18n="rf.z0">阻抗 Z₀</span><span class="hint" data-i18n="att.unitOhm">（Ω）</span></label>
+          <div class="input-wrap">
+            <input id="z0" type="number" value="50" min="1" step="1" inputmode="decimal">
+            <span class="unit">Ω</span>
+          </div>
+          <div class="chips" data-for="z0">
+            <button type="button" class="chip" data-value="50">50</button>
+            <button type="button" class="chip" data-value="75">75</button>
+            <button type="button" class="chip" data-value="300">300</button>
+            <button type="button" class="chip" data-value="600">600</button>
+          </div>
+        </div>
+
+        <div id="error-box" class="error-box" role="alert"></div>
+      </section>
+
+      <!-- ============ 波形图 + 结果区 ============ -->
+      <div class="col-stack">
+        <section class="panel">
+          <div class="results-head">
+            <h2 data-i18n="rf.waveTitle">波形图</h2>
+            <div class="legend">
+              <span><span class="lg lg-known"></span><span data-i18n="legend.known">输入值</span></span>
+              <span><span class="lg lg-comp"></span><span data-i18n="legend.comp">计算值</span></span>
+            </div>
+          </div>
+
+          <div class="schem-wrap">
+            <!-- 正弦波 -->
+            <svg id="svg-sine" class="schem" viewBox="0 0 700 280" role="img" aria-label="正弦波电平图">
+              <text x="360" y="38" text-anchor="middle" class="db-badge" id="s-badge">P = — dBm</text>
+
+              <line x1="60" y1="140" x2="650" y2="140" class="axis"/>
+              <line x1="130" y1="70" x2="590" y2="70" class="guide"/>
+              <line x1="130" y1="210" x2="590" y2="210" class="guide"/>
+              <text x="600" y="74" text-anchor="start" class="port-value" id="s-vp">Vₚ —</text>
+              <text x="600" y="214" text-anchor="start" class="port-value" id="s-vpneg">−Vₚ —</text>
+
+              <line x1="102" y1="70" x2="118" y2="70" class="guide"/>
+              <line x1="102" y1="210" x2="118" y2="210" class="guide"/>
+              <line x1="110" y1="70" x2="110" y2="210" class="guide"/>
+              <text x="110" y="58" text-anchor="middle" class="port-value" id="s-vpp">Vpp —</text>
+
+              <path id="sine-trace" class="trace" d=""/>
+            </svg>
+
+            <!-- 方波（双极性 ±Vp，50% 占空比） -->
+            <svg id="svg-square" class="schem" viewBox="0 0 700 280" role="img" aria-label="方波电平图" style="display:none">
+              <text x="360" y="38" text-anchor="middle" class="db-badge" id="q-badge">P = — dBm</text>
+
+              <line x1="60" y1="140" x2="650" y2="140" class="axis"/>
+              <line x1="130" y1="70" x2="590" y2="70" class="guide"/>
+              <line x1="130" y1="210" x2="590" y2="210" class="guide"/>
+              <text x="600" y="74" text-anchor="start" class="port-value" id="q-vp">Vₚ —</text>
+              <text x="600" y="214" text-anchor="start" class="port-value" id="q-vpneg">−Vₚ —</text>
+
+              <line x1="102" y1="70" x2="118" y2="70" class="guide"/>
+              <line x1="102" y1="210" x2="118" y2="210" class="guide"/>
+              <line x1="110" y1="70" x2="110" y2="210" class="guide"/>
+              <text x="110" y="58" text-anchor="middle" class="port-value" id="q-vpp">Vpp —</text>
+
+              <path class="trace" d="M130,70 L222,70 L222,210 L314,210 L314,70 L406,70 L406,210 L498,210 L498,70 L590,70"/>
+            </svg>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="results-head">
+            <h2 data-i18n="panel.results">计算结果</h2>
+            <span id="summary" class="summary"></span>
+          </div>
+
+          <div class="resistor-grid">
+            <div class="resistor-card">
+              <div class="label" id="c1l">Vpp</div>
+              <div class="value" id="c1v">—</div>
+              <div class="series" id="c1s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c2l">Vrms</div>
+              <div class="value" id="c2v">—</div>
+              <div class="series" id="c2s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c3l">Vₚ</div>
+              <div class="value" id="c3v">—</div>
+              <div class="series" id="c3s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c4l">Vavg</div>
+              <div class="value" id="c4v">—</div>
+              <div class="series" id="c4s"></div>
+            </div>
+          </div>
+
+          <h2 class="result-sub" data-i18n="rf.powerSub">功率 / 分贝换算</h2>
+          <table class="power-table">
+            <tbody>
+              <tr><td id="pw1">平均功率 P</td><td class="num" id="p1">—</td></tr>
+              <tr><td id="pw2">功率（dBm）</td><td class="num" id="p2">—</td></tr>
+              <tr><td id="pw3">功率（dBW）</td><td class="num" id="p3">—</td></tr>
+              <tr><td id="pw4">有效值（dBV）</td><td class="num" id="p4">—</td></tr>
+              <tr><td id="pw5">有效值（dBµV）</td><td class="num" id="p5">—</td></tr>
+            </tbody>
+          </table>
+
+          <details class="formula">
+            <summary data-i18n="formula.summary">计算公式与说明</summary>
+            <div class="formula-body">
+              <p data-i18n-html="rf.f1">正弦波：Vₚ = Vpp/2，<code>Vrms = Vₚ/√2</code>，<code>Vavg = 2Vₚ/π</code>（全波整流平均值）</p>
+              <p data-i18n-html="rf.f2">方波（双极性 ±Vₚ、占空比 50%）：Vₚ = Vpp/2，<code>Vrms = Vavg = Vₚ</code></p>
+              <p data-i18n-html="rf.f3">平均功率：<code>P = Vrms²/Z₀</code>；<code>dBm = 10·lg(P/1mW)</code>，<code>dBW = 10·lg(P/1W)</code></p>
+              <p data-i18n-html="rf.f4">电压分贝：<code>dBV = 20·lg(Vrms/1V)</code>，<code>dBµV = 20·lg(Vrms/1µV)</code></p>
+              <p data-i18n-html="rf.f5">反算：按波形关系将输入电压还原为 Vrms（如正弦 Vrms = Vpp/(2√2)），再由 P = Vrms²/Z₀ 求功率。</p>
+              <p data-i18n-html="rf.f6">速查：50 Ω 系统中 0 dBm ≈ 223.6 mVrms ≈ 632.5 mVpp（正弦）。</p>
+            </div>
+          </details>
+        </section>
+      </div>
+    </div>
+
+    <section class="tips">
+      <strong data-i18n="tips.title">小提示</strong>
+      <ul>
+        <li data-i18n="rf.t1">功率计与频谱仪读数通常是 dBm；示波器读到的是电压，需已知阻抗与波形才能换算成功率。</li>
+        <li data-i18n="rf.t2">相同峰峰值时，双极性方波的有效值是正弦波的 √2 倍，功率大 3.01 dB。</li>
+        <li data-i18n="rf.t3">示波器高阻探头（1 MΩ）下不能套用 50 Ω 公式，请把 Z₀ 改为实际等效阻抗。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
+    </div>
+  </footer>
+
+  <script src="/assets/js/i18n.js"></script>
+  <script src="/assets/js/common.js"></script>
+  <script>
+    /* ============================================================
+     * RF 功率 ↔ 电压换算
+     *  正弦波：Vrms = Vp/√2，Vavg = 2Vp/π（全波整流平均），Vp = Vpp/2
+     *  方波（双极性 ±Vp、50% 占空比）：Vrms = Vavg = Vp
+     *  平均功率 P = Vrms²/Z0；dBm = 10lg(P/1mW)
+     * ============================================================ */
+    (function () {
+      var state = { wave: 'sine', mode: 'pv' }; /* pv：功率→电压；vp：电压→功率 */
+      var pUnit = 'dbm', vType = 'vpp', vUnit = 'v';
+      var reverseTouched = false;
+
+      function $(id) { return document.getElementById(id); }
+      function tt(o) { var v = o[I18N.lang()]; return v != null ? v : o.zh; }
+
+      var L = {
+        msg: {
+          power: { zh: '请输入有效功率（W / mW 须大于 0，dBm 为任意数值）。', en: 'Enter a valid power (W / mW must be > 0; dBm accepts any value).' },
+          volt: { zh: '请输入大于 0 的电压。', en: 'Voltage must be greater than 0.' },
+          z0: { zh: '请输入大于 0 的阻抗 Z₀。', en: 'Impedance Z₀ must be greater than 0.' }
+        },
+        cards: { zh: ['Vpp · 峰峰值', 'Vrms · 有效值', 'Vₚ · 峰值', 'Vavg · 整流平均值'],
+                 en: ['Vpp · peak-peak', 'Vrms · RMS', 'Vₚ · peak', 'Vavg · rectified mean'] },
+        inputMark: { zh: '（输入）', en: ' (input)' },
+        waveHint: {
+          sine: { zh: '正弦波：Vrms = Vₚ/√2，平均值取全波整流平均（2Vₚ/π）。',
+                  en: 'Sine: Vrms = Vₚ/√2; the mean is the full-wave rectified average (2Vₚ/π).' },
+          square: { zh: '方波：双极性对称（±Vₚ、占空比 50%），Vrms = Vavg = Vₚ。',
+                    en: 'Square: bipolar symmetric (±Vₚ, 50% duty), Vrms = Vavg = Vₚ.' }
+        },
+        rows: { zh: ['平均功率 P', '功率（dBm）', '功率（dBW）', '有效值（dBV）', '有效值（dBµV）'],
+                en: ['Mean power P', 'Power (dBm)', 'Power (dBW)', 'Vrms (dBV)', 'Vrms (dBµV)'] }
+      };
+
+      var pvEl = $('pv'), vvEl = $('vv'), z0El = $('z0');
+      var errEl = $('error-box'), sumEl = $('summary'), waveHintEl = $('wave-hint');
+      var cards = [
+        { l: $('c1l'), v: $('c1v'), s: $('c1s') },
+        { l: $('c2l'), v: $('c2v'), s: $('c2s') },
+        { l: $('c3l'), v: $('c3v'), s: $('c3s') },
+        { l: $('c4l'), v: $('c4v'), s: $('c4s') }
+      ];
+      var pwEls = [$('pw1'), $('pw2'), $('pw3'), $('pw4'), $('pw5')];
+      var pEls = [$('p1'), $('p2'), $('p3'), $('p4'), $('p5')];
+      var svgs = { sine: $('svg-sine'), square: $('svg-square') };
+
+      /* ---------- 格式化 ---------- */
+      function fmtV(v) {
+        if (!isFinite(v) || v <= 0) return '—';
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' V';
+        if (v >= 1e-3) return parseFloat((v * 1e3).toPrecision(4)) + ' mV';
+        return parseFloat((v * 1e6).toPrecision(4)) + ' µV';
+      }
+      function fmtWatt(p) {
+        if (!isFinite(p) || p < 0) return '—';
+        if (p >= 1) return parseFloat(p.toPrecision(4)) + ' W';
+        if (p >= 1e-3) return parseFloat((p * 1e3).toPrecision(3)) + ' mW';
+        if (p >= 1e-6) return parseFloat((p * 1e6).toPrecision(3)) + ' µW';
+        return parseFloat((p * 1e9).toPrecision(3)) + ' nW';
+      }
+      function fmtDb(x) {
+        if (!isFinite(x)) return '—';
+        var s = x.toFixed(2);
+        if (s === '-0.00') s = '0.00'; /* 浮点负零显示修正 */
+        return s + ' dB';
+      }
+
+      /* ---------- 换算核心 ---------- */
+      function voltsFromVrms(vrms, wave) {
+        if (wave === 'sine') {
+          var vp = vrms * Math.SQRT2;
+          return { vrms: vrms, vp: vp, vpp: 2 * vp, vavg: 2 * vp / Math.PI };
+        }
+        return { vrms: vrms, vp: vrms, vpp: 2 * vrms, vavg: vrms };
+      }
+      /* 任意类型电压 → Vp */
+      function vTypeToVp(v, type, wave) {
+        if (type === 'vpp') return v / 2;
+        if (type === 'vp') return v;
+        if (type === 'vavg') return wave === 'sine' ? v * Math.PI / 2 : v;
+        return wave === 'sine' ? v * Math.SQRT2 : v; /* vrms */
+      }
+
+      /* ---------- 页面渲染 ---------- */
+      function fail(msg) {
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        cards.forEach(function (c) { c.v.textContent = '—'; c.s.textContent = ''; });
+        sumEl.textContent = '';
+        pEls.forEach(function (el) { el.textContent = '—'; });
+        ['s', 'q'].forEach(function (pre) {
+          $(pre + '-badge').textContent = 'P = — dBm';
+          $(pre + '-vp').textContent = 'Vₚ —';
+          $(pre + '-vpneg').textContent = '−Vₚ —';
+          $(pre + '-vpp').textContent = 'Vpp —';
+        });
+      }
+      function hideError() { errEl.style.display = 'none'; }
+
+      function refreshChips() {
+        document.querySelectorAll('.chips').forEach(function (group) {
+          var input = document.getElementById(group.getAttribute('data-for'));
+          var v = parseFloat(input.value);
+          group.querySelectorAll('.chip').forEach(function (chip) {
+            chip.classList.toggle('active', parseFloat(chip.getAttribute('data-value')) === v);
+          });
+        });
+      }
+
+      function recalc() {
+        var Z = parseFloat(z0El.value);
+        if (!(Z > 0)) return fail(tt(L.msg.z0));
+
+        var P, vIn, vp, vrms;
+        if (state.mode === 'pv') {
+          var px = parseFloat(pvEl.value);
+          if (pUnit === 'dbm') {
+            if (!isFinite(px)) return fail(tt(L.msg.power));
+            P = 1e-3 * Math.pow(10, px / 10);
+          } else {
+            if (!(px > 0)) return fail(tt(L.msg.power));
+            P = pUnit === 'mw' ? px / 1e3 : px;
+          }
+          vrms = Math.sqrt(P * Z);
+        } else {
+          var vx = parseFloat(vvEl.value);
+          if (!(vx > 0)) return fail(tt(L.msg.volt));
+          vIn = vx * (vUnit === 'mv' ? 1e-3 : vUnit === 'uv' ? 1e-6 : 1);
+          vp = vTypeToVp(vIn, vType, state.wave);
+          vrms = state.wave === 'sine' ? vp / Math.SQRT2 : vp;
+          P = vrms * vrms / Z;
+        }
+        hideError();
+
+        var v = voltsFromVrms(vrms, state.wave);
+        var labels = L.cards[I18N.lang()] || L.cards.zh;
+        var types = ['vpp', 'vrms', 'vp', 'vavg'];
+        types.forEach(function (tp, i) {
+          var sub = (state.mode === 'vp' && vType === tp) ? tt(L.inputMark) : '';
+          cards[i].l.textContent = labels[i];
+          cards[i].v.textContent = fmtV(v[tp]);
+          cards[i].s.textContent = sub;
+        });
+
+        var dbm = 10 * Math.log10(P / 1e-3);
+        var dbw = 10 * Math.log10(P);
+        var dbv = 20 * Math.log10(vrms);
+        pEls[0].textContent = fmtWatt(P);
+        pEls[1].textContent = fmtDb(dbm) + 'm';
+        pEls[2].textContent = fmtDb(dbw) + 'W';
+        pEls[3].textContent = fmtDb(dbv) + 'V';
+        pEls[4].textContent = fmtDb(dbv + 120) + 'µV';
+        var rowLabels = L.rows[I18N.lang()] || L.rows.zh;
+        pwEls.forEach(function (el, i) { el.textContent = rowLabels[i]; });
+
+        sumEl.textContent = 'Vrms ' + fmtV(vrms) + ' · Z₀ ' + parseFloat(Z.toPrecision(4)) + ' Ω';
+
+        /* 波形图标注：正算时电平均为计算值（蓝）；反算时功率与未输入的电平为计算值 */
+        ['s', 'q'].forEach(function (pre) {
+          $(pre + '-badge').textContent = 'P = ' + dbm.toFixed(2) + ' dBm';
+          $(pre + '-vp').textContent = 'Vₚ ' + fmtV(v.vp);
+          $(pre + '-vpneg').textContent = '−Vₚ −' + fmtV(v.vp);
+          $(pre + '-vpp').textContent = 'Vpp ' + fmtV(v.vpp);
+          var compAll = state.mode === 'pv';
+          $(pre + '-vp').classList.toggle('computed', compAll || vType !== 'vp');
+          $(pre + '-vpneg').classList.toggle('computed', compAll || vType !== 'vp');
+          $(pre + '-vpp').classList.toggle('computed', compAll || vType !== 'vpp');
+          $(pre + '-badge').classList.toggle('computed', state.mode === 'vp');
+        });
+        refreshChips();
+      }
+
+      /* ---------- 状态切换 ---------- */
+      function applyState() {
+        document.querySelectorAll('#seg-wave .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-wave') === state.wave);
+        });
+        document.querySelectorAll('#seg-mode .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-mode') === state.mode);
+        });
+        document.querySelectorAll('#seg-punit .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-u') === pUnit);
+        });
+        document.querySelectorAll('#seg-vtype .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-t') === vType);
+        });
+        document.querySelectorAll('#seg-vunit .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-u') === vUnit);
+        });
+        $('panel-forward').hidden = state.mode !== 'pv';
+        $('panel-reverse').hidden = state.mode !== 'vp';
+        svgs.sine.style.display = state.wave === 'sine' ? '' : 'none';
+        svgs.square.style.display = state.wave === 'square' ? '' : 'none';
+        waveHintEl.textContent = tt(L.waveHint[state.wave]);
+        recalc();
+      }
+
+      /* 未手动改动过反算输入时，用当前正算结果预填（按当前选定的电压类型与单位） */
+      function prefillReverse() {
+        if (reverseTouched) return;
+        var Z = parseFloat(z0El.value), px = parseFloat(pvEl.value);
+        if (!(Z > 0)) return;
+        var P;
+        if (pUnit === 'dbm') { if (!isFinite(px)) return; P = 1e-3 * Math.pow(10, px / 10); }
+        else { if (!(px > 0)) return; P = pUnit === 'mw' ? px / 1e3 : px; }
+        var v = voltsFromVrms(Math.sqrt(P * Z), state.wave);
+        var base = v[vType], mult = vUnit === 'mv' ? 1e3 : vUnit === 'uv' ? 1e6 : 1;
+        vvEl.value = parseFloat((base * mult).toPrecision(5));
+      }
+
+      /* ---------- 正弦波轨迹生成（两个周期） ---------- */
+      (function buildSine() {
+        var d = '';
+        for (var x = 130; x <= 590; x += 4) {
+          var y = 140 - 70 * Math.sin(2 * Math.PI * (x - 130) / 230);
+          d += (d ? ' L' : 'M') + x + ',' + y.toFixed(1);
+        }
+        document.getElementById('sine-trace').setAttribute('d', d);
+      })();
+
+      /* ---------- 事件绑定 ---------- */
+      function bindSeg(id, attr, fn) {
+        document.querySelectorAll('#' + id + ' .seg-btn').forEach(function (b) {
+          b.addEventListener('click', function () { fn(b.getAttribute(attr)); });
+        });
+      }
+      bindSeg('seg-wave', 'data-wave', function (v) { state.wave = v; applyState(); });
+      bindSeg('seg-mode', 'data-mode', function (v) {
+        state.mode = v;
+        if (v === 'vp') prefillReverse();
+        applyState();
+      });
+      bindSeg('seg-punit', 'data-u', function (v) { pUnit = v; prefillReverse(); applyState(); });
+      bindSeg('seg-vtype', 'data-t', function (v) { vType = v; applyState(); });
+      bindSeg('seg-vunit', 'data-u', function (v) { vUnit = v; prefillReverse(); applyState(); });
+
+      document.querySelectorAll('.chips').forEach(function (group) {
+        var input = document.getElementById(group.getAttribute('data-for'));
+        group.addEventListener('click', function (e) {
+          var chip = e.target.closest('.chip');
+          if (!chip) return;
+          input.value = chip.getAttribute('data-value');
+          recalc();
+        });
+      });
+
+      [pvEl, vvEl, z0El].forEach(function (el) { el.addEventListener('input', recalc); });
+      vvEl.addEventListener('input', function () { reverseTouched = true; });
+
+      /* 切换语言：静态文本由 i18n.js 处理，这里重渲染动态部分 */
+      document.addEventListener('langchange', function () {
+        reverseTouched = false; /* 重置后按当前正算值重新预填 */
+        if (state.mode === 'vp') prefillReverse();
+        applyState();
+      });
+
+      applyState(); /* 初始渲染一次 */
+    })();
+  </script>
+</body>
+</html>

@@ -14,13 +14,23 @@
   </script>
   <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body>
+<body data-i18n-doc="e404.doc">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+      <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+    </div>
+  </header>
+
   <main class="container" style="text-align: center; padding: 110px 22px;">
     <div style="font-size: 3.4rem; line-height: 1;">🧭</div>
-    <h1>404 · 页面不存在</h1>
-    <p style="color: var(--text-2);">你要找的页面可能被移动或删除了。</p>
-    <p style="margin-top: 26px;"><a class="btn" href="/">← 返回首页</a></p>
+    <h1 data-i18n="e404.title">404 · 页面不存在</h1>
+    <p style="color: var(--text-2);" data-i18n="e404.desc">你要找的页面可能被移动或删除了。</p>
+    <p style="margin-top: 26px;"><a class="btn" href="/" data-i18n="e404.go">← 返回首页</a></p>
   </main>
+
+  <script src="/assets/js/i18n.js"></script>
   <script src="/assets/js/common.js"></script>
 </body>
 </html>

@@ -16,17 +16,18 @@
   </script>
   <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body>
+<body data-i18n-doc="att.doc">
   <header class="site-header">
     <div class="container header-inner">
-      <a class="back-link" href="/">← 返回首页</a>
-      <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+      <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
     </div>
   </header>
 
   <main class="container page-main">
-    <h1 class="page-title">π / T 型衰减器计算器</h1>
-    <p class="page-subtitle">
+    <h1 class="page-title" data-i18n="att.h1">π / T 型衰减器计算器</h1>
+    <p class="page-subtitle" data-i18n="att.subtitle">
       Attenuator Calculator —— π 型 / T 型电阻衰减网络的设计与反算：输入特性阻抗与衰减量计算电阻，
       或输入三个电阻反推端口阻抗与衰减量。电路拓扑图实时标注各位置数值。
     </p>
@@ -34,21 +35,21 @@
     <div class="calc-grid">
       <!-- ============ 输入区 ============ -->
       <section class="panel">
-        <h2>参数设置</h2>
+        <h2 data-i18n="panel.settings">参数设置</h2>
 
         <div class="field">
-          <label>拓扑类型</label>
+          <label data-i18n="att.topoType">拓扑类型</label>
           <div class="seg" id="seg-topo">
-            <button type="button" class="seg-btn active" data-topo="pi">π 型（Pi）</button>
-            <button type="button" class="seg-btn" data-topo="t">T 型（Tee）</button>
+            <button type="button" class="seg-btn active" data-topo="pi" data-i18n="att.topoPi">π 型（Pi）</button>
+            <button type="button" class="seg-btn" data-topo="t" data-i18n="att.topoT">T 型（Tee）</button>
           </div>
         </div>
 
         <div class="field">
-          <label>计算模式</label>
+          <label data-i18n="att.modeType">计算模式</label>
           <div class="seg" id="seg-mode">
-            <button type="button" class="seg-btn active" data-mode="design">设计模式</button>
-            <button type="button" class="seg-btn" data-mode="reverse">反算模式</button>
+            <button type="button" class="seg-btn active" data-mode="design" data-i18n="att.modeDesign">设计模式</button>
+            <button type="button" class="seg-btn" data-mode="reverse" data-i18n="att.modeReverse">反算模式</button>
           </div>
           <p class="mode-hint" id="mode-hint"></p>
         </div>
@@ -56,7 +57,7 @@
         <!-- 设计模式输入 -->
         <div id="panel-design">
           <div class="field">
-            <label for="attn">衰减量 A <span class="hint">（dB）</span></label>
+            <label for="attn"><span data-i18n="att.attn">衰减量 A</span><span class="hint" data-i18n="att.unitDb">（dB）</span></label>
             <div class="input-wrap">
               <input id="attn" type="number" value="6" min="0.1" max="90" step="0.1" inputmode="decimal">
               <span class="unit">dB</span>
@@ -71,7 +72,7 @@
           </div>
 
           <div class="field">
-            <label for="z0">特性阻抗 Z₀ <span class="hint">（Ω）</span></label>
+            <label for="z0"><span data-i18n="att.z0">特性阻抗 Z₀</span><span class="hint" data-i18n="att.unitOhm">（Ω）</span></label>
             <div class="input-wrap">
               <input id="z0" type="number" value="50" min="1" step="1" inputmode="decimal">
               <span class="unit">Ω</span>
@@ -111,7 +112,7 @@
         </div>
 
         <div class="field">
-          <label for="pin">输入功率 P<sub>in</sub> <span class="hint">（W，用于估算各电阻功耗）</span></label>
+          <label for="pin"><span data-i18n-html="att.pinLabel">输入功率 P<sub>in</sub></span><span class="hint" data-i18n="att.pinHint">（W，用于估算各电阻功耗）</span></label>
           <div class="input-wrap">
             <input id="pin" type="number" value="1" min="0" step="any" inputmode="decimal">
             <span class="unit">W</span>
@@ -125,10 +126,10 @@
       <div class="col-stack">
         <section class="panel">
           <div class="results-head">
-            <h2>电路拓扑</h2>
+            <h2 data-i18n="att.schemTitle">电路拓扑</h2>
             <div class="legend">
-              <span><span class="lg lg-known"></span>输入值</span>
-              <span><span class="lg lg-comp"></span>计算值</span>
+              <span><span class="lg lg-known"></span><span data-i18n="legend.known">输入值</span></span>
+              <span><span class="lg lg-comp"></span><span data-i18n="legend.comp">计算值</span></span>
             </div>
           </div>
 
@@ -139,7 +140,7 @@
 
               <circle cx="64" cy="120" r="4" class="port-dot"/>
               <line x1="68" y1="120" x2="200" y2="120" class="wire"/>
-              <text x="64" y="92" text-anchor="middle" class="port-name">输入</text>
+              <text x="64" y="92" text-anchor="middle" class="port-name" data-i18n="att.svg.in">输入</text>
               <text x="64" y="164" text-anchor="middle" class="port-value" id="pi-zin">—</text>
 
               <circle cx="200" cy="120" r="3.5" class="node-dot"/>
@@ -152,7 +153,7 @@
               <line x1="200" y1="120" x2="310" y2="120" class="wire"/>
               <rect x="310" y="108" width="80" height="24" rx="3" class="res-body"/>
               <line x1="390" y1="120" x2="500" y2="120" class="wire"/>
-              <text x="350" y="84" text-anchor="middle" class="anno-name">R₂ · 串联</text>
+              <text x="350" y="84" text-anchor="middle" class="anno-name" data-i18n="att.svg.series2">R₂ · 串联</text>
               <text x="350" y="102" text-anchor="middle" class="anno-value" id="pi-r2">—</text>
 
               <circle cx="500" cy="120" r="3.5" class="node-dot"/>
@@ -164,7 +165,7 @@
 
               <line x1="500" y1="120" x2="632" y2="120" class="wire"/>
               <circle cx="636" cy="120" r="4" class="port-dot"/>
-              <text x="636" y="92" text-anchor="middle" class="port-name">输出</text>
+              <text x="636" y="92" text-anchor="middle" class="port-name" data-i18n="att.svg.out">输出</text>
               <text x="636" y="164" text-anchor="middle" class="port-value" id="pi-zout">—</text>
 
               <line x1="200" y1="230" x2="500" y2="230" class="wire"/>
@@ -180,12 +181,12 @@
 
               <circle cx="64" cy="120" r="4" class="port-dot"/>
               <line x1="68" y1="120" x2="160" y2="120" class="wire"/>
-              <text x="64" y="92" text-anchor="middle" class="port-name">输入</text>
+              <text x="64" y="92" text-anchor="middle" class="port-name" data-i18n="att.svg.in">输入</text>
               <text x="64" y="164" text-anchor="middle" class="port-value" id="t-zin">—</text>
 
               <rect x="160" y="108" width="80" height="24" rx="3" class="res-body"/>
               <line x1="240" y1="120" x2="440" y2="120" class="wire"/>
-              <text x="200" y="84" text-anchor="middle" class="anno-name">R₁ · 串联</text>
+              <text x="200" y="84" text-anchor="middle" class="anno-name" data-i18n="att.svg.series1">R₁ · 串联</text>
               <text x="200" y="102" text-anchor="middle" class="anno-value" id="t-r1">—</text>
 
               <circle cx="340" cy="120" r="3.5" class="node-dot"/>
@@ -197,11 +198,11 @@
 
               <rect x="440" y="108" width="80" height="24" rx="3" class="res-body"/>
               <line x1="520" y1="120" x2="632" y2="120" class="wire"/>
-              <text x="480" y="84" text-anchor="middle" class="anno-name">R₃ · 串联</text>
+              <text x="480" y="84" text-anchor="middle" class="anno-name" data-i18n="att.svg.series3">R₃ · 串联</text>
               <text x="480" y="102" text-anchor="middle" class="anno-value" id="t-r3">—</text>
 
               <circle cx="636" cy="120" r="4" class="port-dot"/>
-              <text x="636" y="92" text-anchor="middle" class="port-name">输出</text>
+              <text x="636" y="92" text-anchor="middle" class="port-name" data-i18n="att.svg.out">输出</text>
               <text x="636" y="164" text-anchor="middle" class="port-value" id="t-zout">—</text>
 
               <line x1="340" y1="230" x2="340" y2="244" class="wire"/>
@@ -214,7 +215,7 @@
 
         <section class="panel">
           <div class="results-head">
-            <h2>计算结果</h2>
+            <h2 data-i18n="panel.results">计算结果</h2>
             <span id="summary" class="summary"></span>
           </div>
 
@@ -236,29 +237,29 @@
             </div>
           </div>
 
-          <h2 class="result-sub">功耗估算（按 P<sub>in</sub> = <span id="pin-echo">1</span> W，两端按影像阻抗匹配）</h2>
+          <h2 class="result-sub" id="power-title"></h2>
           <table class="power-table">
             <tbody>
               <tr><td id="pw1">R₁</td><td class="num" id="p1">—</td></tr>
               <tr><td id="pw2">R₂</td><td class="num" id="p2">—</td></tr>
               <tr><td id="pw3">R₃</td><td class="num" id="p3">—</td></tr>
-              <tr><td>输出功率 P<sub>out</sub></td><td class="num" id="pout">—</td></tr>
+              <tr><td id="pw4">P<sub>out</sub></td><td class="num" id="pout">—</td></tr>
             </tbody>
           </table>
 
           <details class="formula">
-            <summary>计算公式与说明</summary>
+            <summary data-i18n="formula.summary">计算公式与说明</summary>
             <div class="formula-body">
-              <p><strong>设计模式</strong>（对称网络，电压比 <code>a = 10^(A/20)</code>，A 为衰减量 dB）：</p>
-              <p>π 型：<code>R₁ = R₃ = Z₀·(a+1)/(a−1)</code>（两端并联），<code>R₂ = Z₀·(a²−1)/(2a)</code>（串联）</p>
-              <p>T 型：<code>R₁ = R₃ = Z₀·(a−1)/(a+1)</code>（两端串联），<code>R₂ = 2Z₀·a/(a²−1)</code>（并联）</p>
-              <p><strong>反算模式</strong>（ABCD 矩阵法，支持非对称网络）：</p>
-              <p>π 型：<code>A = 1+R₂/R₃，B = R₂，C = 1/R₁+1/R₃+R₂/(R₁R₃)，D = 1+R₂/R₁</code></p>
-              <p>T 型：<code>A = 1+R₁/R₂，B = R₁+R₃+R₁R₃/R₂，C = 1/R₂，D = 1+R₃/R₂</code></p>
-              <p><code>Z_in = √(AB/CD)</code>，<code>Z_out = √(DB/AC)</code>，<code>衰减 = 20·lg(√(AD)+√(BC))</code></p>
-              <p>网络不对称时 Z_in 与 Z_out 不相等，衰减按两端影像阻抗匹配端接定义；对称时两者同为 Z₀。</p>
-              <p><strong>功耗估算</strong>：以源内阻 Z_in、负载 Z_out 端接（影像匹配），节点电压法解出各电阻的电压电流，再按输入功率 P<sub>in</sub> 缩放。</p>
-              <p>标称值取与计算值最接近的 E24（±5%）与 E96（±1%）系列电阻。</p>
+              <p data-i18n-html="att.f1">设计模式（对称网络，电压比 <code>a = 10^(A/20)</code>，A 为衰减量 dB）：</p>
+              <p data-i18n-html="att.f2">π 型：<code>R₁ = R₃ = Z₀·(a+1)/(a−1)</code>（两端并联），<code>R₂ = Z₀·(a²−1)/(2a)</code>（串联）</p>
+              <p data-i18n-html="att.f3">T 型：<code>R₁ = R₃ = Z₀·(a−1)/(a+1)</code>（两端串联），<code>R₂ = 2Z₀·a/(a²−1)</code>（并联）</p>
+              <p data-i18n-html="att.f4">反算模式（ABCD 矩阵法，支持非对称网络）：</p>
+              <p data-i18n-html="att.f5">π 型：<code>A = 1+R₂/R₃，B = R₂，C = 1/R₁+1/R₃+R₂/(R₁R₃)，D = 1+R₂/R₁</code></p>
+              <p data-i18n-html="att.f6">T 型：<code>A = 1+R₁/R₂，B = R₁+R₃+R₁R₃/R₂，C = 1/R₂，D = 1+R₃/R₂</code></p>
+              <p data-i18n-html="att.f7"><code>Z_in = √(AB/CD)</code>，<code>Z_out = √(DB/AC)</code>，<code>衰减 = 20·lg(√(AD)+√(BC))</code></p>
+              <p data-i18n-html="att.f8">网络不对称时 Z_in 与 Z_out 不相等，衰减按两端影像阻抗匹配端接定义；对称时两者同为 Z₀。</p>
+              <p data-i18n-html="att.f9">功耗估算：以源内阻 Z_in、负载 Z_out 端接（影像匹配），节点电压法解出各电阻的电压电流，再按输入功率 P<sub>in</sub> 缩放。</p>
+              <p data-i18n-html="att.f10">标称值取与计算值最接近的 E24（±5%）与 E96（±1%）系列电阻。</p>
             </div>
           </details>
         </section>
@@ -266,22 +267,23 @@
     </div>
 
     <section class="tips">
-      <strong>小提示</strong>
+      <strong data-i18n="tips.title">小提示</strong>
       <ul>
-        <li>π 型与 T 型互为对偶：衰减量较小时 π 型的并联臂阻值极大、T 型的串联臂阻值极小，可按手头现成的阻值选择更容易实现的拓扑。</li>
-        <li>衰减量大时约八成的功率消耗在 R₁ 上，选型时重点关注它的额定功率。</li>
-        <li>反算模式下若三个电阻不对称，两端的影像阻抗不相等，衰减按影像匹配端接定义。</li>
-        <li>射频场景建议使用 1% 精度金属膜电阻，并尽量选小封装以降低寄生电感。</li>
+        <li data-i18n="att.t1">π 型与 T 型互为对偶：衰减量较小时 π 型的并联臂阻值极大、T 型的串联臂阻值极小，可按手头现成的阻值选择更容易实现的拓扑。</li>
+        <li data-i18n="att.t2">衰减量大时约八成的功率消耗在 R₁ 上，选型时重点关注它的额定功率。</li>
+        <li data-i18n="att.t3">反算模式下若三个电阻不对称，两端的影像阻抗不相等，衰减按影像匹配端接定义。</li>
+        <li data-i18n="att.t4">射频场景建议使用 1% 精度金属膜电阻，并尽量选小封装以降低寄生电感。</li>
       </ul>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container">
-      © <span id="year">2026</span> Gyboy · <a href="/">返回目录</a>
+      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
     </div>
   </footer>
 
+  <script src="/assets/js/i18n.js"></script>
   <script src="/assets/js/common.js"></script>
   <script>
     /* ============================================================
@@ -300,10 +302,55 @@
       var reverseTouched = false;
 
       function $(id) { return document.getElementById(id); }
+      /* 页面动态文案（跟随 I18N 当前语言） */
+      function tt(o) { var v = o[I18N.lang()]; return v != null ? v : o.zh; }
+
+      var L = {
+        msg: {
+          design: { zh: '请输入大于 0 的衰减量与特性阻抗。', en: 'Attenuation and impedance must be greater than 0.' },
+          reverse: { zh: '请输入大于 0 的三个电阻阻值。', en: 'All three resistor values must be greater than 0.' }
+        },
+        cards: {
+          pi: { zh: ['R₁ · 输入端并联', 'R₂ · 串联', 'R₃ · 输出端并联'],
+                en: ['R₁ · shunt (in)', 'R₂ · series', 'R₃ · shunt (out)'] },
+          t:  { zh: ['R₁ · 输入端串联', 'R₂ · 并联', 'R₃ · 输出端串联'],
+                en: ['R₁ · series (in)', 'R₂ · shunt', 'R₃ · series (out)'] }
+        },
+        power: {
+          pi: { zh: ['R₁（输入端并联）', 'R₂（串联）', 'R₃（输出端并联）'],
+                en: ['R₁ (shunt, in)', 'R₂ (series)', 'R₃ (shunt, out)'] },
+          t:  { zh: ['R₁（输入端串联）', 'R₂（并联）', 'R₃（输出端串联）'],
+                en: ['R₁ (series, in)', 'R₂ (shunt)', 'R₃ (series, out)'] }
+        },
+        pout: { zh: '输出功率 P', en: 'Output power P' },
+        hint: {
+          pi: { zh: ['（输入端并联，Ω）', '（串联，Ω）', '（输出端并联，Ω）'],
+                en: ['(shunt at input, Ω)', '(series, Ω)', '(shunt at output, Ω)'] },
+          t:  { zh: ['（输入端串联，Ω）', '（并联，Ω）', '（输出端串联，Ω）'],
+                en: ['(series at input, Ω)', '(shunt, Ω)', '(series at output, Ω)'] }
+        },
+        modeHint: {
+          design: { zh: '输入特性阻抗与衰减量，计算三个电阻的阻值（两端对称，输入/输出阻抗相同）。',
+                    en: 'Enter the impedance and attenuation to compute the three resistors (symmetric: Z_in = Z_out = Z₀).' },
+          reverse: { zh: '输入三个电阻的阻值，反推端口影像阻抗与衰减量（非对称网络时两端阻抗不同）。',
+                     en: 'Enter three resistor values to back out the image impedances and attenuation (asymmetric networks supported).' }
+        },
+        cardZin:  { zh: '输入端影像阻抗 Z_in', en: 'Input image impedance Z_in' },
+        cardZout: { zh: '输出端影像阻抗 Z_out', en: 'Output image impedance Z_out' },
+        cardAttn: { zh: '衰减量 A', en: 'Attenuation A' },
+        subZin:   { zh: '匹配端接所需的源内阻', en: 'Source resistance for a matched termination' },
+        subZout:  { zh: '匹配端接所需的负载电阻', en: 'Load resistance for a matched termination' },
+        ratio:    { zh: '电压比', en: 'Voltage ratio' },
+        pratio:   { zh: '功率比', en: 'power ratio' },
+        badge:    { zh: '衰减', en: 'Atten' },
+        std:      { zh: '标称', en: 'Std' },
+        powerTitle: { zh: '功耗估算（按 P<sub>in</sub> = %V% W，两端按影像阻抗匹配）',
+                      en: 'Dissipation at P<sub>in</sub> = %V% W, image-matched at both ports' }
+      };
 
       var attnEl = $('attn'), z0El = $('z0'), pinEl = $('pin');
       var rrEls = [$('rr1'), $('rr2'), $('rr3')];
-      var errEl = $('error-box'), sumEl = $('summary'), pinEchoEl = $('pin-echo');
+      var errEl = $('error-box'), sumEl = $('summary'), powerTitleEl = $('power-title');
       var modeHintEl = $('mode-hint');
       var cards = [
         { l: $('c1l'), v: $('c1v'), s: $('c1s') },
@@ -313,24 +360,6 @@
       var pwEls = [$('pw1'), $('pw2'), $('pw3')];
       var pEls = [$('p1'), $('p2'), $('p3')], poutEl = $('pout');
       var svgs = { pi: $('svg-pi'), t: $('svg-t') };
-
-      /* 各拓扑下的文字标签（结果卡片 / 功耗表 / 反算输入提示） */
-      var LABELS = {
-        pi: {
-          cards: ['R₁ · 输入端并联', 'R₂ · 串联', 'R₃ · 输出端并联'],
-          power: ['R₁（输入端并联）', 'R₂（串联）', 'R₃（输出端并联）'],
-          hint: ['输入端并联', '串联', '输出端并联']
-        },
-        t: {
-          cards: ['R₁ · 输入端串联', 'R₂ · 并联', 'R₃ · 输出端串联'],
-          power: ['R₁（输入端串联）', 'R₂（并联）', 'R₃（输出端串联）'],
-          hint: ['输入端串联', '并联', '输出端串联']
-        }
-      };
-      var MODE_HINT = {
-        design: '输入特性阻抗与衰减量，计算三个电阻的阻值（两端对称，输入/输出阻抗相同）。',
-        reverse: '输入三个电阻的阻值，反推端口影像阻抗与衰减量（非对称网络时两端阻抗不同）。'
-      };
 
       /* E24（±5%）与 E96（±1%）标准阻值系列（基数统一为 [1, 10)，乘以 10^n 得实际阻值） */
       var E24 = [1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3,
@@ -376,7 +405,8 @@
         var n = nearestSeries(v, series);
         if (!n || !isFinite(n.value)) return '';
         var sign = n.value >= v ? '+' : '−';
-        return '标称 ' + fmtOhm(n.value) + '（' + sign + n.errPct.toFixed(1) + '%）';
+        var zh = I18N.lang() === 'zh';
+        return tt(L.std) + ' ' + fmtOhm(n.value) + (zh ? '（' : ' (') + sign + n.errPct.toFixed(1) + '%' + (zh ? '）' : ')');
       }
 
       /* 高斯-约当消元求解线性方程组 M·x = b（n ≤ 3） */
@@ -468,6 +498,9 @@
         cards[i].v.textContent = value;
         cards[i].s.textContent = sub || '';
       }
+      function ratioText(r) {
+        return tt(L.ratio) + ' ' + fmtRatio(r) + ' · ' + tt(L.pratio) + ' ' + fmtRatio(r * r);
+      }
 
       function renderDiagrams(net, res) {
         ['pi', 't'].forEach(function (topo) {
@@ -477,7 +510,7 @@
           $(pre + 'r3').textContent = fmtOhm(net.r3);
           $(pre + 'zin').textContent = (state.mode === 'reverse' ? 'Z_in ' : 'Z₀ ') + fmtOhm(res.zin);
           $(pre + 'zout').textContent = (state.mode === 'reverse' ? 'Z_out ' : 'Z₀ ') + fmtOhm(res.zout);
-          $(pre + 'db').textContent = '衰减 ' + res.db.toFixed(2) + ' dB';
+          $(pre + 'db').textContent = tt(L.badge) + ' ' + res.db.toFixed(2) + ' dB';
           /* 设计模式：电阻为计算值；反算模式：端口与衰减为计算值 */
           svgs[topo].querySelectorAll('.anno-value').forEach(function (el) {
             el.classList.toggle('computed', state.mode === 'design');
@@ -498,7 +531,7 @@
         ['pi', 't'].forEach(function (topo) {
           var pre = topo + '-';
           ['r1', 'r2', 'r3', 'zin', 'zout'].forEach(function (k) { $(pre + k).textContent = '—'; });
-          $(pre + 'db').textContent = '衰减 — dB';
+          $(pre + 'db').textContent = tt(L.badge) + ' — dB';
         });
       }
       function hideError() { errEl.style.display = 'none'; }
@@ -520,22 +553,22 @@
         var net, res;
         if (state.mode === 'design') {
           var A = parseFloat(attnEl.value), Z = parseFloat(z0El.value);
-          if (!(A > 0) || !(Z > 0)) return fail('请输入大于 0 的衰减量与特性阻抗。');
+          if (!(A > 0) || !(Z > 0)) return fail(tt(L.msg.design));
           net = designPad(Z, A, state.topo);
           res = { zin: Z, zout: Z, db: A, ratio: Math.pow(10, A / 20) };
-          setCard(0, LABELS[state.topo].cards[0], fmtOhm(net.r1), seriesText(net.r1, E96) + '　' + seriesText(net.r1, E24));
-          setCard(1, LABELS[state.topo].cards[1], fmtOhm(net.r2), seriesText(net.r2, E96) + '　' + seriesText(net.r2, E24));
-          setCard(2, LABELS[state.topo].cards[2], fmtOhm(net.r3), seriesText(net.r3, E96) + '　' + seriesText(net.r3, E24));
+          var lbl = L.cards[state.topo][I18N.lang()] || L.cards[state.topo].zh;
+          setCard(0, lbl[0], fmtOhm(net.r1), seriesText(net.r1, E96) + '　' + seriesText(net.r1, E24));
+          setCard(1, lbl[1], fmtOhm(net.r2), seriesText(net.r2, E96) + '　' + seriesText(net.r2, E24));
+          setCard(2, lbl[2], fmtOhm(net.r3), seriesText(net.r3, E96) + '　' + seriesText(net.r3, E24));
         } else {
           var r1 = parseFloat(rrEls[0].value), r2 = parseFloat(rrEls[1].value), r3 = parseFloat(rrEls[2].value);
-          if (!(r1 > 0) || !(r2 > 0) || !(r3 > 0)) return fail('请输入大于 0 的三个电阻阻值。');
+          if (!(r1 > 0) || !(r2 > 0) || !(r3 > 0)) return fail(tt(L.msg.reverse));
           net = { r1: r1, r2: r2, r3: r3 };
           res = analyzePad(r1, r2, r3, state.topo);
           res.db = 20 * Math.log10(res.ratio);
-          setCard(0, '输入端影像阻抗 Z_in', fmtOhm(res.zin), '匹配端接所需的源内阻');
-          setCard(1, '输出端影像阻抗 Z_out', fmtOhm(res.zout), '匹配端接所需的负载电阻');
-          setCard(2, '衰减量 A', res.db.toFixed(2) + ' dB',
-            '电压比 ' + fmtRatio(res.ratio) + ' · 功率比 ' + fmtRatio(res.ratio * res.ratio));
+          setCard(0, tt(L.cardZin), fmtOhm(res.zin), tt(L.subZin));
+          setCard(1, tt(L.cardZout), fmtOhm(res.zout), tt(L.subZout));
+          setCard(2, tt(L.cardAttn), res.db.toFixed(2) + ' dB', ratioText(res.ratio));
         }
         hideError();
 
@@ -549,10 +582,11 @@
           pEls.forEach(function (el) { el.textContent = '—'; });
           poutEl.textContent = '—';
         }
-        pinEchoEl.textContent = pin;
-        pwEls.forEach(function (el, i) { el.textContent = LABELS[state.topo].power[i]; });
+        pwEls.forEach(function (el, i) { el.textContent = (L.power[state.topo][I18N.lang()] || L.power[state.topo].zh)[i]; });
+        $('pw4').innerHTML = tt(L.pout) + '<sub>out</sub>';
+        powerTitleEl.innerHTML = tt(L.powerTitle).replace('%V%', pin);
 
-        sumEl.textContent = '电压比 ' + fmtRatio(res.ratio) + ' · 功率比 ' + fmtRatio(res.ratio * res.ratio);
+        sumEl.textContent = ratioText(res.ratio);
         renderDiagrams(net, res);
         refreshChips();
       }
@@ -569,11 +603,11 @@
         $('panel-reverse').hidden = state.mode !== 'reverse';
         svgs.pi.style.display = state.topo === 'pi' ? '' : 'none';
         svgs.t.style.display = state.topo === 't' ? '' : 'none';
-        modeHintEl.textContent = MODE_HINT[state.mode];
-        var h = LABELS[state.topo].hint;
-        $('rr1-hint').textContent = '（' + h[0] + '，Ω）';
-        $('rr2-hint').textContent = '（' + h[1] + '，Ω）';
-        $('rr3-hint').textContent = '（' + h[2] + '，Ω）';
+        modeHintEl.textContent = tt(L.modeHint[state.mode]);
+        var h = L.hint[state.topo][I18N.lang()] || L.hint[state.topo].zh;
+        $('rr1-hint').textContent = h[0];
+        $('rr2-hint').textContent = h[1];
+        $('rr3-hint').textContent = h[2];
         recalc();
       }
 
@@ -617,6 +651,13 @@
       [attnEl, z0El, pinEl].forEach(function (el) { el.addEventListener('input', recalc); });
       rrEls.forEach(function (el) {
         el.addEventListener('input', function () { reverseTouched = true; recalc(); });
+      });
+
+      /* 切换语言：静态文本由 i18n.js 处理，这里重渲染动态部分 */
+      document.addEventListener('langchange', function () {
+        reverseTouched = false; /* 重置后按当前设计值重新预填 */
+        if (state.mode === 'reverse') prefillReverse();
+        applyState();
       });
 
       applyState(); /* 初始渲染一次 */
