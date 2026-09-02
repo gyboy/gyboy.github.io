@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gyboy 的小站 · 目录</title>
+  <meta name="description" content="Gyboy 的个人站点：收录各类小工具与页面，持续更新。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+  <script>
+    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
+    (function () {
+      var t = localStorage.getItem('gyboy-theme');
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">Gyboy 的小站</a>
+      <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>你好，这里是 Gyboy 👋</h1>
+      <p>我的个人目录站 —— 收录做过的各类小工具与页面，持续更新中。</p>
+    </section>
+
+    <section>
+      <h2 class="section-title">目录</h2>
+      <div id="page-grid" class="card-grid"></div>
+      <noscript><p class="empty-tip">请启用 JavaScript 以查看目录。</p></noscript>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      © <span id="year">2026</span> Gyboy · 由 <a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> 托管
+    </div>
+  </footer>
+
+  <script src="/assets/js/pages.js"></script>
+  <script src="/assets/js/common.js"></script>
+</body>
+</html>

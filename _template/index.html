@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!--
+  ════════════════════════════════════════════════════════════
+  新页面模板 · 使用方法（3 步）
+  ────────────────────────────────────────────────────────────
+  1. 把整个 _template 文件夹复制一份，重命名为页面路径，
+     例如 tools/my-tool/ 或 blog/my-post/
+  2. 修改下方 <title>、<h1 class="page-title">、
+     <p class="page-subtitle"> 和 <main> 里的正文内容；
+     需要交互逻辑时，把 JS 写在页面底部的 <script> 中
+  3. 打开 /assets/js/pages.js，在 SITE_PAGES 数组里加一条记录，
+     首页目录会自动出现新卡片
+
+  详细说明见仓库根目录 MAINTENANCE.md
+  ════════════════════════════════════════════════════════════
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>页面标题 · Gyboy 的小站</title>
+  <meta name="description" content="一句话页面简介。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+  <script>
+    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
+    (function () {
+      var t = localStorage.getItem('gyboy-theme');
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="back-link" href="/">← 返回首页</a>
+      <button id="theme-toggle" class="icon-btn" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+    </div>
+  </header>
+
+  <main class="container page-main">
+    <h1 class="page-title">页面标题</h1>
+    <p class="page-subtitle">一句话副标题 / 简介。</p>
+
+    <!-- 正文从这里开始，可以直接复用 .panel 卡片容器 -->
+    <div class="panel">
+      <p>在这里写正文内容……</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      © <span id="year">2026</span> Gyboy · <a href="/">返回目录</a>
+    </div>
+  </footer>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    /* 页面专属脚本写在这里 */
+  </script>
+</body>
+</html>
