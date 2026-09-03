@@ -109,8 +109,10 @@ git push
 1. 页面需在 `common.js` 之前引入 `<script src="/assets/js/i18n.js"></script>`，并在顶栏放置切换按钮：
 
    ```html
-   <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
-   <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme">🌙</button>
+   <div class="header-actions">
+     <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme">🌙</button>
+     <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+   </div>
    ```
 
 2. **静态文本**：元素加 `data-i18n="key"`（纯文本）或 `data-i18n-html="key"`（含 `<code>/<sub>/<a>` 的富文本），并把词条加进 `i18n.js` 的 `I18N_DICT`（`{ zh: '…', en: '…' }`）。浏览器标签页标题用 `<body data-i18n-doc="key">`。

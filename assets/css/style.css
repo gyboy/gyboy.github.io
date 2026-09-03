@@ -66,6 +66,12 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
   height: 58px;
 }
+/* 顶栏右侧动作组：主题与语言按钮紧邻排列 */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .brand { font-weight: 700; font-size: 1.05rem; color: var(--text); }
 .brand:hover { text-decoration: none; color: var(--accent); }
 .back-link { color: var(--text-2); font-size: 0.95rem; }
