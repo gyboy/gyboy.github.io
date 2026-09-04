@@ -42,4 +42,14 @@ var SITE_PAGES = [
     },
     tag: { zh: "工具", en: "Tool" },
   },
+  {
+    path: "tools/phase-noise/",
+    icon: "📉",
+    title: { zh: "相位噪声分析", en: "Phase Noise Analysis" },
+    desc: {
+      zh: "导入频谱仪 CSV 相位噪声数据：多曲线对比、积分相位噪声与 RMS 抖动、Marker 与 Delta 测量、统计与导出。",
+      en: "Analyze CSV phase-noise traces: multi-trace comparison, integrated PN & RMS jitter, markers with delta, statistics and export."
+    },
+    tag: { zh: "工具", en: "Tool" },
+  },
 ];
