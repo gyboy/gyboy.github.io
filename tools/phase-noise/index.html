@@ -18,7 +18,10 @@
   <link rel="stylesheet" href="/assets/css/style.css">
   <style>
     /* ============ 相位噪声分析页专属样式（全部走全站 CSS 变量） ============ */
-    .pn-main { max-width: 1440px; margin: 0 auto; padding: 28px 22px 48px; }
+    .pn-main { max-width: none; padding: 24px 16px 40px; }
+    /* 应用型页面：头栏与页脚同样通栏，与内容对齐 */
+    body.pn-wide .site-header .container,
+    body.pn-wide .site-footer .container { max-width: none; }
     .pn-sub { color: var(--text-2); margin: 0 0 18px; font-size: 0.97rem; }
 
     .pn-topbar {
@@ -38,13 +41,35 @@
     .pn-btn.toggle-on { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 600; }
     .pn-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 
-    .pn-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr) 330px; gap: 16px; align-items: stretch; }
-    .pn-grid.left-hidden { grid-template-columns: 0 minmax(0, 1fr) 330px; }
-    .pn-grid.right-hidden { grid-template-columns: 280px minmax(0, 1fr) 0; }
-    .pn-grid.both-hidden { grid-template-columns: 0 minmax(0, 1fr) 0; }
-    .pn-grid > .panel { display: flex; flex-direction: column; overflow: hidden; min-height: 560px; }
-    .pn-grid.left-hidden > .panel:nth-child(1), .pn-grid.right-hidden > .panel:nth-child(3),
-    .pn-grid.both-hidden > .panel:nth-child(1), .pn-grid.both-hidden > .panel:nth-child(3) {
+    .pn-grid {
+      display: grid;
+      /* 列宽由 CSS 变量控制，可通过分隔条拖拽调整 */
+      grid-template-columns: var(--left-w, 280px) 14px minmax(0, 1fr) 14px var(--right-w, 330px);
+      align-items: stretch;
+    }
+    .pn-split { position: relative; cursor: col-resize; touch-action: none; }
+    .pn-split::before {
+      content: ''; position: absolute; left: 5px; right: 5px; top: 0; bottom: 0;
+      border-radius: 4px; background: transparent; transition: background 0.15s;
+    }
+    .pn-split:hover::before, .pn-split.active::before { background: var(--accent-weak); }
+    .pn-split::after {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 2px; height: 36px; border-radius: 2px; background: var(--border);
+    }
+    .pn-split:hover::after, .pn-split.active::after { background: var(--accent); }
+    body.pn-resizing { cursor: col-resize; user-select: none; }
+    .pn-grid.left-hidden { grid-template-columns: 0px 0px minmax(0, 1fr) 14px var(--right-w, 330px); }
+    .pn-grid.right-hidden { grid-template-columns: var(--left-w, 280px) 14px minmax(0, 1fr) 0px 0px; }
+    .pn-grid.both-hidden { grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px; }
+    .pn-grid.left-hidden #split-left, .pn-grid.right-hidden #split-right,
+    .pn-grid.both-hidden #split-left, .pn-grid.both-hidden #split-right { display: none; }
+    .pn-grid > .panel {
+      display: flex; flex-direction: column; overflow: hidden;
+      min-height: clamp(560px, calc(100vh - 340px), 1040px);
+    }
+    .pn-grid.left-hidden > .panel:nth-child(1), .pn-grid.right-hidden > .panel:nth-child(5),
+    .pn-grid.both-hidden > .panel:nth-child(1), .pn-grid.both-hidden > .panel:nth-child(5) {
       border: none; padding: 0; box-shadow: none; overflow: hidden;
     }
     .panel-head {
@@ -165,17 +190,20 @@
     .pill.gray { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
 
     @media (max-width: 1180px) {
-      .pn-grid { grid-template-columns: 240px minmax(0, 1fr) 300px; }
+      .pn-grid { grid-template-columns: 240px 14px minmax(0, 1fr) 14px 300px; }
     }
     @media (max-width: 980px) {
-      .pn-grid, .pn-grid.left-hidden, .pn-grid.right-hidden, .pn-grid.both-hidden { grid-template-columns: minmax(0, 1fr); }
+      .pn-grid, .pn-grid.left-hidden, .pn-grid.right-hidden, .pn-grid.both-hidden {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      .pn-split { display: none; }
       .pn-grid > .panel { min-height: auto; }
       #pn-plot { min-height: 380px; }
       .pn-cursor { margin-left: 0; }
     }
   </style>
 </head>
-<body data-i18n-doc="pn.doc">
+<body class="pn-wide" data-i18n-doc="pn.doc">
   <header class="site-header">
     <div class="container header-inner">
       <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
@@ -219,6 +247,9 @@
         </div>
       </section>
 
+      <!-- 拖拽分隔条：左 | 中 -->
+      <div class="pn-split" id="split-left" title="拖拽调整宽度（双击复位）"></div>
+
       <!-- 中：绘图 -->
       <section class="panel">
         <div class="panel-head"><span data-i18n="pn.plotTitle">相位噪声曲线</span></div>
@@ -233,6 +264,9 @@
           </div>
         </div>
       </section>
+
+      <!-- 拖拽分隔条：中 | 右 -->
+      <div class="pn-split" id="split-right" title="拖拽调整宽度（双击复位）"></div>
 
       <!-- 右：工具 -->
       <section class="panel" id="pn-right">
@@ -975,6 +1009,59 @@
       }
       function resizePlot() { if (plotDiv && plotDiv.data) Plotly.Plots.resize(plotDiv); }
 
+      /* ============ 面板宽度拖拽 ============ */
+      const grid = $('pn-grid');
+      let colW = { l: 280, r: 330 };
+      try {
+        const saved = JSON.parse(localStorage.getItem('pn-col-w') || 'null');
+        if (saved && saved.l >= 170 && saved.r >= 170) colW = saved;
+      } catch (e) { /* 忽略损坏的存储 */ }
+      function applyColW() {
+        grid.style.setProperty('--left-w', colW.l + 'px');
+        grid.style.setProperty('--right-w', colW.r + 'px');
+      }
+      let colResizeQueued = false;
+      function scheduleColResize() {
+        if (colResizeQueued) return;
+        colResizeQueued = true;
+        requestAnimationFrame(() => { colResizeQueued = false; resizePlot(); });
+      }
+      let colDrag = null;
+      function bindSplit(el, side) {
+        const dir = side === 'l' ? 1 : -1; /* 左条向右拖增宽，右条向左拖增宽 */
+        el.addEventListener('pointerdown', e => {
+          e.preventDefault();
+          colDrag = { side, dir, startX: e.clientX, startW: colW[side] };
+          el.classList.add('active');
+          document.body.classList.add('pn-resizing');
+        });
+        el.addEventListener('dblclick', () => {
+          colW[side] = side === 'l' ? 280 : 330;
+          applyColW();
+          localStorage.setItem('pn-col-w', JSON.stringify(colW));
+          resizePlot();
+        });
+      }
+      window.addEventListener('pointermove', e => {
+        if (!colDrag) return;
+        const delta = (e.clientX - colDrag.startX) * colDrag.dir;
+        const max = Math.floor(window.innerWidth * 0.6);
+        colW[colDrag.side] = Math.min(Math.max(170, colDrag.startW + delta), max);
+        applyColW();
+        scheduleColResize();
+      });
+      window.addEventListener('pointerup', () => {
+        if (!colDrag) return;
+        colDrag = null;
+        document.body.classList.remove('pn-resizing');
+        document.querySelectorAll('.pn-split.active').forEach(el => el.classList.remove('active'));
+        localStorage.setItem('pn-col-w', JSON.stringify(colW));
+        resizePlot();
+      });
+      bindSplit($('split-left'), 'l');
+      bindSplit($('split-right'), 'r');
+      applyColW();
+
       /* ============ 主题/语言跟随 ============ */
       new MutationObserver(() => renderPlot())
         .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -1000,7 +1087,9 @@
         datasets: () => datasets,
         markers: () => markers,
         integralState: () => ({ lo: intLo, hi: intHi, history: intHistory.map(h => ({ dbc: h.r.dbc, rmsRad: h.r.rmsRad, rmsDeg: h.r.rmsDeg, lo: h.lo, hi: h.hi })) }),
-        addMarkerAt: (dsIdx, f) => addMarker(datasets[dsIdx].id, f)
+        addMarkerAt: (dsIdx, f) => addMarker(datasets[dsIdx].id, f),
+        setColWidths: (l, r) => { colW.l = l; colW.r = r; applyColW(); resizePlot(); },
+        colWidths: () => ({ ...colW })
       };
     })();
   </script>
