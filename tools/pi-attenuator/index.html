@@ -117,7 +117,11 @@
           <label for="pin"><span data-i18n-html="att.pinLabel">输入功率 P<sub>in</sub></span><span class="hint" data-i18n="att.pinHint">（W，用于估算各电阻功耗）</span></label>
           <div class="input-wrap">
             <input id="pin" type="number" value="1" min="0" step="any" inputmode="decimal">
-            <span class="unit">W</span>
+            <span class="unit" id="pin-unit">W</span>
+          </div>
+          <div class="seg" id="seg-punit" style="margin-top: 8px;">
+            <button type="button" class="seg-btn active" data-u="w">W</button>
+            <button type="button" class="seg-btn" data-u="dbm">dBm</button>
           </div>
         </div>
 
@@ -301,6 +305,7 @@
      * ============================================================ */
     (function () {
       var state = { topo: 'pi', mode: 'design' };
+      var pinUnit = 'w';
       var reverseTouched = false;
 
       function $(id) { return document.getElementById(id); }
@@ -346,8 +351,8 @@
         pratio:   { zh: '功率比', en: 'power ratio' },
         badge:    { zh: '衰减', en: 'Atten' },
         std:      { zh: '标称', en: 'Std' },
-        powerTitle: { zh: '功耗估算（按 P<sub>in</sub> = %V% W，两端按影像阻抗匹配）',
-                      en: 'Dissipation at P<sub>in</sub> = %V% W, image-matched at both ports' }
+        powerTitle: { zh: '功耗估算（P<sub>in</sub> = %V%，两端按影像阻抗匹配）',
+                      en: 'Dissipation (P<sub>in</sub> = %V%, image-matched at both ports)' }
       };
 
       var attnEl = $('attn'), z0El = $('z0'), pinEl = $('pin');
@@ -549,8 +554,13 @@
       }
 
       function recalc() {
-        var pin = parseFloat(pinEl.value);
-        if (!(pin > 0)) pin = 1; /* 功耗估算默认按 1 W */
+        var px = parseFloat(pinEl.value);
+        var pin;
+        if (pinUnit === 'dbm') {
+          pin = isFinite(px) ? 1e-3 * Math.pow(10, px / 10) : 1; /* dBm → W，空/非法时按 1 W 处理 */
+        } else {
+          pin = px > 0 ? px : 1; /* 功耗估算默认按 1 W */
+        }
 
         var net, res;
         if (state.mode === 'design') {
@@ -586,7 +596,7 @@
         }
         pwEls.forEach(function (el, i) { el.textContent = (L.power[state.topo][I18N.lang()] || L.power[state.topo].zh)[i]; });
         $('pw4').innerHTML = tt(L.pout) + '<sub>out</sub>';
-        powerTitleEl.innerHTML = tt(L.powerTitle).replace('%V%', pin);
+        powerTitleEl.innerHTML = tt(L.powerTitle).replace('%V%', fmtWatt(pin));
 
         sumEl.textContent = ratioText(res.ratio);
         renderDiagrams(net, res);
@@ -601,6 +611,10 @@
         document.querySelectorAll('#seg-mode .seg-btn').forEach(function (b) {
           b.classList.toggle('active', b.getAttribute('data-mode') === state.mode);
         });
+        document.querySelectorAll('#seg-punit .seg-btn').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-u') === pinUnit);
+        });
+        $('pin-unit').textContent = pinUnit === 'dbm' ? 'dBm' : 'W';
         $('panel-design').hidden = state.mode !== 'design';
         $('panel-reverse').hidden = state.mode !== 'reverse';
         svgs.pi.style.display = state.topo === 'pi' ? '' : 'none';
@@ -636,6 +650,12 @@
         b.addEventListener('click', function () {
           state.mode = b.getAttribute('data-mode');
           if (state.mode === 'reverse') prefillReverse();
+          applyState();
+        });
+      });
+      document.querySelectorAll('#seg-punit .seg-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          pinUnit = b.getAttribute('data-u');
           applyState();
         });
       });
