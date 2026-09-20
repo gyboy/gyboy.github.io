@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>分压电阻计算器 · Gyboy 的小站</title>
+  <meta name="description" content="DC-DC 反馈分压电阻在线计算：输入基准电压 V_REF 与目标输出 V_out，自动计算分压比并从 E96（±1%）/ E24（±5%）标准阻值中推荐最优电阻组合，附实际输出误差与分压电流。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔻</text></svg>">
+  <script>
+    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
+    (function () {
+      var t = localStorage.getItem('gyboy-theme');
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body data-i18n-doc="vd.doc">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+        <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container page-main">
+    <h1 class="page-title" data-i18n="vd.h1">分压电阻计算器</h1>
+    <p class="page-subtitle" data-i18n="vd.subtitle"></p>
+
+    <div class="calc-grid">
+      <!-- ============ 输入区 ============ -->
+      <section class="panel">
+        <h2 data-i18n="panel.settings">参数设置</h2>
+
+        <div class="field">
+          <label for="vref"><span data-i18n="vd.vref">基准电压 V_REF</span><span class="hint" data-i18n="vd.unitV">（V）</span></label>
+          <div class="input-wrap">
+            <input id="vref" type="number" value="0.8" min="0" step="any" inputmode="decimal">
+            <span class="unit">V</span>
+          </div>
+          <div class="chips" data-for="vref">
+            <button type="button" class="chip" data-value="0.6">0.6</button>
+            <button type="button" class="chip" data-value="0.7">0.7</button>
+            <button type="button" class="chip" data-value="0.8">0.8</button>
+            <button type="button" class="chip" data-value="1.0">1.0</button>
+            <button type="button" class="chip" data-value="1.25">1.25</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="vout"><span data-i18n="vd.vout">目标输出 V_out</span><span class="hint" data-i18n="vd.unitV">（V）</span></label>
+          <div class="input-wrap">
+            <input id="vout" type="number" value="3.3" min="0" step="any" inputmode="decimal">
+            <span class="unit">V</span>
+          </div>
+          <div class="chips" data-for="vout">
+            <button type="button" class="chip" data-value="1.8">1.8</button>
+            <button type="button" class="chip" data-value="2.5">2.5</button>
+            <button type="button" class="chip" data-value="3.3">3.3</button>
+            <button type="button" class="chip" data-value="5">5.0</button>
+            <button type="button" class="chip" data-value="12">12</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span data-i18n="vd.r2min">R₂ 取值下限</span><span class="hint" data-i18n="vd.unitK">（kΩ）</span></label>
+          <div class="input-wrap">
+            <input id="r2min" type="number" value="1" min="0" step="any" inputmode="decimal">
+            <span class="unit">kΩ</span>
+          </div>
+        </div>
+        <div class="field">
+          <label><span data-i18n="vd.r2max">R₂ 取值上限</span><span class="hint" data-i18n="vd.unitK">（kΩ）</span></label>
+          <div class="input-wrap">
+            <input id="r2max" type="number" value="100" min="0" step="any" inputmode="decimal">
+            <span class="unit">kΩ</span>
+          </div>
+        </div>
+
+        <div id="error-box" class="error-box" role="alert"></div>
+      </section>
+
+      <!-- ============ 拓扑 + 结果区 ============ -->
+      <div class="col-stack">
+        <section class="panel">
+          <div class="results-head">
+            <h2 data-i18n="vd.schemTitle">分压拓扑</h2>
+            <div class="legend">
+              <span><span class="lg lg-known"></span><span data-i18n="legend.known">输入值</span></span>
+              <span><span class="lg lg-comp"></span><span data-i18n="legend.comp">计算值</span></span>
+            </div>
+          </div>
+
+          <div class="schem-wrap">
+            <svg class="schem" viewBox="0 0 700 330" role="img" aria-label="DCDC 反馈分压拓扑图">
+              <text x="200" y="28" text-anchor="middle" class="port-name" data-i18n="vd.svg.voutName">输出电压 V_out</text>
+              <text x="200" y="47" text-anchor="middle" class="port-value" id="svg-vout">—</text>
+              <circle cx="200" cy="56" r="4" class="port-dot"/>
+              <line x1="200" y1="60" x2="200" y2="84" class="wire"/>
+
+              <rect x="188" y="84" width="24" height="52" rx="3" class="res-body"/>
+              <line x1="200" y1="136" x2="200" y2="164" class="wire"/>
+              <text x="184" y="102" text-anchor="end" class="anno-name" data-i18n="vd.svg.r1">R₁ · 上分压</text>
+              <text x="184" y="122" text-anchor="end" class="anno-value computed" id="svg-r1">—</text>
+
+              <circle cx="200" cy="164" r="3.5" class="node-dot"/>
+              <line x1="200" y1="164" x2="320" y2="164" class="wire"/>
+              <text x="328" y="158" text-anchor="start" class="port-name" data-i18n="vd.svg.fb">FB / V_REF 节点</text>
+              <text x="328" y="178" text-anchor="start" class="port-value" id="svg-fb">—</text>
+
+              <line x1="200" y1="164" x2="200" y2="190" class="wire"/>
+              <rect x="188" y="190" width="24" height="52" rx="3" class="res-body"/>
+              <line x1="200" y1="242" x2="200" y2="266" class="wire"/>
+              <text x="184" y="208" text-anchor="end" class="anno-name" data-i18n="vd.svg.r2">R₂ · 下分压</text>
+              <text x="184" y="228" text-anchor="end" class="anno-value computed" id="svg-r2">—</text>
+
+              <line x1="182" y1="270" x2="218" y2="270" class="wire"/>
+              <line x1="190" y1="277" x2="210" y2="277" class="wire"/>
+              <line x1="197" y1="284" x2="203" y2="284" class="wire"/>
+
+              <text x="480" y="120" text-anchor="middle" class="port-name" data-i18n="vd.svg.formula">V_out = V_REF × (1 + R₁/R₂)</text>
+              <text x="480" y="176" text-anchor="middle" class="port-name" data-i18n="vd.svg.actual">实际输出</text>
+              <text x="480" y="200" text-anchor="middle" class="port-value computed" id="svg-vact">—</text>
+            </svg>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="results-head">
+            <h2 data-i18n="panel.results">计算结果</h2>
+            <span id="summary" class="summary"></span>
+          </div>
+
+          <div class="resistor-grid">
+            <div class="resistor-card">
+              <div class="label" id="c1l"></div>
+              <div class="value" id="c1v">—</div>
+              <div class="series" id="c1s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c2l"></div>
+              <div class="value" id="c2v">—</div>
+              <div class="series" id="c2s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c3l"></div>
+              <div class="value" id="c3v">—</div>
+              <div class="series" id="c3s"></div>
+            </div>
+            <div class="resistor-card">
+              <div class="label" id="c4l"></div>
+              <div class="value" id="c4v">—</div>
+              <div class="series" id="c4s"></div>
+            </div>
+          </div>
+
+          <h2 class="result-sub" id="t96"></h2>
+          <div id="tbl96"></div>
+
+          <h2 class="result-sub" id="t24"></h2>
+          <div id="tbl24"></div>
+
+          <details class="formula">
+            <summary data-i18n="formula.summary">计算公式与说明</summary>
+            <div class="formula-body">
+              <p data-i18n-html="vd.f1"></p>
+              <p data-i18n-html="vd.f2"></p>
+              <p data-i18n-html="vd.f3"></p>
+              <p data-i18n-html="vd.f4"></p>
+              <p data-i18n-html="vd.f5"></p>
+            </div>
+          </details>
+        </section>
+      </div>
+    </div>
+
+    <section class="tips">
+      <strong data-i18n="tips.title">小提示</strong>
+      <ul>
+        <li data-i18n="vd.t1"></li>
+        <li data-i18n="vd.t2"></li>
+        <li data-i18n="vd.t3"></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
+    </div>
+  </footer>
+
+  <script src="/assets/js/i18n.js"></script>
+  <script src="/assets/js/common.js"></script>
+  <script>
+    /* ============================================================
+     * DCDC 反馈分压电阻推荐
+     *  V_out = V_REF × (1 + R1/R2) → R1/R2 = V_out/V_REF − 1 = K
+     *  对 R2 取值范围内的每个标准阻值：R1_ideal = R2 × K，
+     *  取最接近的标准 R1，计算实际输出与误差；
+     *  每个数量级（10^k）保留误差最小的一组，按误差升序展示。
+     * ============================================================ */
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+
+      var vrefEl = $('vref'), voutEl = $('vout'), minEl = $('r2min'), maxEl = $('r2max');
+      var errEl = $('error-box'), sumEl = $('summary');
+      var svgOut = { r1: $('svg-r1'), r2: $('svg-r2'), fb: $('svg-fb'), vout: $('svg-vout'), vact: $('svg-vact') };
+      var cards = [
+        { l: $('c1l'), v: $('c1v'), s: $('c1s') },
+        { l: $('c2l'), v: $('c2v'), s: $('c2s') },
+        { l: $('c3l'), v: $('c3v'), s: $('c3s') },
+        { l: $('c4l'), v: $('c4v'), s: $('c4s') }
+      ];
+
+      var E24 = [1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3,
+                 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1];
+      var E96 = [1.00, 1.02, 1.05, 1.07, 1.10, 1.13, 1.15, 1.18, 1.21, 1.24, 1.27, 1.30, 1.33, 1.37, 1.40, 1.43,
+                 1.47, 1.50, 1.54, 1.58, 1.62, 1.65, 1.69, 1.74, 1.78, 1.82, 1.87, 1.91, 1.96, 2.00, 2.05, 2.10,
+                 2.15, 2.21, 2.26, 2.32, 2.37, 2.43, 2.49, 2.55, 2.61, 2.67, 2.74, 2.80, 2.87, 2.94, 3.01, 3.09,
+                 3.16, 3.24, 3.32, 3.40, 3.48, 3.57, 3.65, 3.74, 3.83, 3.92, 4.02, 4.12, 4.22, 4.32, 4.42, 4.53,
+                 4.64, 4.75, 4.87, 4.99, 5.11, 5.23, 5.36, 5.49, 5.62, 5.76, 5.90, 6.04, 6.19, 6.34, 6.49, 6.65,
+                 6.81, 6.98, 7.15, 7.32, 7.50, 7.68, 7.87, 8.06, 8.25, 8.45, 8.66, 8.87, 9.09, 9.31, 9.53, 9.76];
+
+      function fmtOhm(r) {
+        if (!isFinite(r) || r <= 0) return '—';
+        if (r >= 1e6) return parseFloat((r / 1e6).toPrecision(4)) + ' MΩ';
+        if (r >= 1e3) return parseFloat((r / 1e3).toPrecision(4)) + ' kΩ';
+        if (r < 1) return parseFloat((r * 1e3).toPrecision(3)) + ' mΩ';
+        return parseFloat(r.toPrecision(4)) + ' Ω';
+      }
+      function fmtV(v) {
+        if (!isFinite(v)) return '—';
+        if (v >= 1) return parseFloat(v.toPrecision(5)) + ' V';
+        if (v >= 1e-3) return parseFloat((v * 1e3).toPrecision(5)) + ' mV';
+        return parseFloat((v * 1e6).toPrecision(4)) + ' µV';
+      }
+      function fmtA(a) {
+        if (!isFinite(a) || a <= 0) return '—';
+        if (a >= 1e-3) return parseFloat((a * 1e3).toPrecision(4)) + ' mA';
+        if (a >= 1e-6) return parseFloat((a * 1e6).toPrecision(4)) + ' µA';
+        return parseFloat((a * 1e9).toPrecision(3)) + ' nA';
+      }
+      function fmtErr(e) { return (e >= 0 ? '+' : '') + e.toFixed(2) + '%'; }
+      /* 在标准系列中找最接近 v 的阻值 */
+      function nearestStd(v, series) {
+        if (!isFinite(v) || v <= 0) return null;
+        var exp = Math.floor(Math.log10(v));
+        var best = null, bestErr = Infinity;
+        [exp - 1, exp, exp + 1].forEach(function (e) {
+          var mult = Math.pow(10, e);
+          series.forEach(function (m) {
+            var c = m * mult;
+            var err = Math.abs(c - v);
+            if (err < bestErr) { bestErr = err; best = c; }
+          });
+        });
+        return best;
+      }
+
+      /*
+       * 扫描推荐：K = R1/R2 理想比值
+       * 对范围内每个标准 R2 求 R1_ideal = R2×K 的最近标准值，
+       * 每个数量级（round(log10(R2))）保留误差最小的一组
+       */
+      function sweep(vref, vout, r2min, r2max, series) {
+        var K = vout / vref - 1;
+        var byBucket = {};
+        series.forEach(function (m) {
+          [0, 1, 2, 3, 4, 5, 6].forEach(function (e) {
+            var r2 = m * Math.pow(10, e);
+            if (r2 < r2min || r2 > r2max) return;
+            var r1ideal = r2 * K;
+            var r1 = nearestStd(r1ideal, series);
+            if (!r1 || r1 < 10 || r1 > 10e6) return;
+            var vact = vref * (1 + r1 / r2);
+            var cand = {
+              r1: r1, r2: r2, r1ideal: r1ideal, vact: vact,
+              err: (vact - vout) / vout * 100,
+              idiv: vout / (r1 + r2),
+              series: series === E96 ? 'E96' : 'E24'
+            };
+            var b = Math.round(Math.log10(r2));
+            if (!byBucket[b] || Math.abs(cand.err) < Math.abs(byBucket[b].err)) byBucket[b] = cand;
+          });
+        });
+        return Object.keys(byBucket)
+          .map(function (k) { return byBucket[k]; })
+          .sort(function (a, b) { return Math.abs(a.err) - Math.abs(b.err); });
+      }
+
+      function fail(key) {
+        errEl.textContent = I18N.t(key);
+        errEl.style.display = 'block';
+        cards.forEach(function (c) { c.v.textContent = '—'; c.s.textContent = ''; });
+        $('tbl96').innerHTML = ''; $('tbl24').innerHTML = '';
+        sumEl.textContent = '';
+        svgOut.r1.textContent = svgOut.r2.textContent = svgOut.vact.textContent = '—';
+        svgOut.fb.textContent = '—'; svgOut.vout.textContent = '—';
+      }
+      function hideError() { errEl.style.display = 'none'; }
+
+      function buildTable(list, title) {
+        var h = '<table class="power-table"><thead><tr>' +
+          '<th style="text-align:left;">' + I18N.t('vd.tblR1') + '</th>' +
+          '<th style="text-align:left;">' + I18N.t('vd.tblR2') + '</th>' +
+          '<th>' + I18N.t('vd.tblIdeal') + '</th>' +
+          '<th>' + I18N.t('vd.tblVout') + '</th>' +
+          '<th>' + I18N.t('vd.tblErr') + '</th>' +
+          '<th>' + I18N.t('vd.tblI') + '</th></tr></thead><tbody>';
+        if (!list.length) {
+          h += '<tr><td colspan="6" style="text-align:center;color:var(--text-2);">—</td></tr>';
+        } else {
+          list.slice(0, 5).forEach(function (c, i) {
+            h += '<tr><td style="text-align:left;">' + fmtOhm(c.r1) + (i === 0 ? ' <span style="color:var(--accent);font-weight:700;">★' + I18N.t('vd.bestTag') + '</span>' : '') + '</td>' +
+              '<td style="text-align:left;">' + fmtOhm(c.r2) + '</td>' +
+              '<td class="num">' + fmtOhm(c.r1ideal) + '</td>' +
+              '<td class="num">' + fmtV(c.vact) + '</td>' +
+              '<td class="num" style="color:' + (Math.abs(c.err) < 0.5 ? 'var(--accent)' : 'var(--text)') + ';">' + fmtErr(c.err) + '</td>' +
+              '<td class="num">' + fmtA(c.idiv) + '</td></tr>';
+          });
+        }
+        return h + '</tbody></table>';
+      }
+
+      function recalc() {
+        var vref = parseFloat(vrefEl.value), vout = parseFloat(voutEl.value);
+        var r2min = parseFloat(minEl.value) * 1e3, r2max = parseFloat(maxEl.value) * 1e3;
+        if (!(vref > 0) || !(vout > 0)) return fail('vd.msg.positive');
+        if (!(vout > vref)) return fail('vd.msg.refBelow');
+        if (!(r2min > 0) || !(r2max >= r2min)) return fail('vd.msg.range');
+        hideError();
+
+        var e96 = sweep(vref, vout, r2min, r2max, E96);
+        var e24 = sweep(vref, vout, r2min, r2max, E24);
+        /* 拓扑图与结果卡片展示两个系列中的全局最优 */
+        var best = e96[0] || e24[0];
+        if (e24[0] && (!best || Math.abs(e24[0].err) < Math.abs(best.err))) best = e24[0];
+
+        svgOut.vout.textContent = fmtV(vout);
+        svgOut.fb.textContent = fmtV(vref);
+        if (best) {
+          svgOut.r1.textContent = fmtOhm(best.r1);
+          svgOut.r2.textContent = fmtOhm(best.r2);
+          svgOut.vact.textContent = fmtV(best.vact);
+          var lbl = [
+            I18N.t('vd.cards.r1'), I18N.t('vd.cards.r2'),
+            I18N.t('vd.cards.vact'), I18N.t('vd.cards.err')
+          ];
+          cards[0].l.textContent = lbl[0]; cards[0].v.textContent = fmtOhm(best.r1); cards[0].s.textContent = best.series;
+          cards[1].l.textContent = lbl[1]; cards[1].v.textContent = fmtOhm(best.r2); cards[1].s.textContent = best.series;
+          cards[2].l.textContent = lbl[2]; cards[2].v.textContent = fmtV(best.vact); cards[2].s.textContent = fmtErr(best.err);
+          cards[3].l.textContent = lbl[3]; cards[3].v.textContent = fmtErr(best.err); cards[3].s.textContent = fmtA(best.idiv);
+        }
+        $('t96').textContent = I18N.t('vd.tbl96');
+        $('t24').textContent = I18N.t('vd.tbl24');
+        $('tbl96').innerHTML = buildTable(e96);
+        $('tbl24').innerHTML = buildTable(e24);
+        sumEl.textContent = 'K = ' + parseFloat((vout / vref - 1).toPrecision(4)) +
+          ' · V_out/V_REF = ' + parseFloat((vout / vref).toPrecision(4));
+      }
+
+      function refreshChips() {
+        document.querySelectorAll('.chips').forEach(function (group) {
+          var input = document.getElementById(group.getAttribute('data-for'));
+          var v = parseFloat(input.value);
+          group.querySelectorAll('.chip').forEach(function (chip) {
+            chip.classList.toggle('active', parseFloat(chip.getAttribute('data-value')) === v);
+          });
+        });
+      }
+
+      [vrefEl, voutEl, minEl, maxEl].forEach(function (el) { el.addEventListener('input', recalc); });
+      document.querySelectorAll('.chips').forEach(function (group) {
+        var input = document.getElementById(group.getAttribute('data-for'));
+        group.addEventListener('click', function (e) {
+          var chip = e.target.closest('.chip');
+          if (!chip) return;
+          input.value = chip.getAttribute('data-value');
+          recalc();
+        });
+      });
+      document.addEventListener('langchange', recalc);
+
+      recalc();
+
+      /* 供自动化测试 */
+      window.__VD_TEST = {
+        sweep: sweep,
+        last: function () {
+          var vref = parseFloat(vrefEl.value), vout = parseFloat(voutEl.value);
+          var r2min = parseFloat(minEl.value) * 1e3, r2max = parseFloat(maxEl.value) * 1e3;
+          return { vref: vref, vout: vout, e96: sweep(vref, vout, r2min, r2max, E96), e24: sweep(vref, vout, r2min, r2max, E24) };
+        }
+      };
+    })();
+  </script>
+</body>
+</html>

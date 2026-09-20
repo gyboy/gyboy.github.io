@@ -52,4 +52,14 @@ var SITE_PAGES = [
     },
     tag: { zh: "工具", en: "Tool" },
   },
+  {
+    path: "tools/voltage-divider/",
+    icon: "🔻",
+    title: { zh: "分压电阻计算器", en: "Voltage Divider Calculator" },
+    desc: {
+      zh: "DC-DC 反馈分压设计：由 V_REF 与目标 V_out 推荐最优 E96/E24 分压电阻组合，含实际输出误差与分压电流。",
+      en: "DC-DC feedback divider: pick the best E96/E24 resistor pairs from V_REF and target V_out, with output error and divider current."
+    },
+    tag: { zh: "工具", en: "Tool" },
+  },
 ];
