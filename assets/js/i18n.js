@@ -178,6 +178,11 @@ window.I18N_DICT = {
               en: 'Reverse Word flips every 4-byte group (common for little-endian 32-bit words); Reverse Data reverses the whole sequence. Both can combine.' },
   'crc.t3': { zh: 'TEXT 模式支持 UTF-8 / GBK / ASCII 编码；ASCII 遇到非 ASCII 字符或 GBK 遇到不可映射字符时按空数据处理（与源实现一致）。',
               en: 'TEXT mode supports UTF-8 / GBK / ASCII; non-ASCII input under ASCII, or unmappable characters under GBK, are treated as empty data (as in the reference implementation).' },
+  'crc.fileBtn':  { zh: '📎 上传 TXT 计算', en: '📎 Upload TXT / file' },
+  'crc.fileHint': { zh: '（按文件原始字节计算，适合固件 / 日志校验；编辑输入框或点 ✕ 返回手动输入）',
+                    en: ' (computed over the raw file bytes — great for firmware / log checks; edit the field or press ✕ to go back)' },
+  'crc.t4': { zh: '上传 TXT / 固件文件后按原始字节计算校验值，配合 Reverse Word / Data 可匹配小端序固件中的 CRC 存储。',
+              en: 'Uploaded TXT / firmware files are hashed over their raw bytes; combine with Reverse Word / Data to match CRCs stored little-endian in firmware.' },
 
   /* ---------- 相位噪声分析 ---------- */
   'pn.doc':       { zh: '相位噪声分析 · Gyboy 的小站', en: "Phase Noise Analysis · Gyboy's Site" },

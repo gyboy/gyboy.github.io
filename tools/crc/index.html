@@ -62,6 +62,28 @@
       background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none; cursor: pointer;
     }
     .enc-row select:focus { border-color: var(--accent); }
+    .file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .file-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1.5px dashed var(--border); border-radius: 10px; background: var(--bg);
+      color: var(--text-2); font-family: inherit; font-size: 0.84rem;
+      padding: 8px 14px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .file-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .file-chip {
+      display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+      background: var(--accent-weak); border: 1px solid var(--accent); border-radius: 99px;
+      color: var(--accent); font-size: 0.8rem; padding: 5px 12px;
+    }
+    .file-chip .fname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .file-chip .fsize { font-family: ui-monospace, Consolas, monospace; font-size: 0.72rem; opacity: 0.85; }
+    .file-chip .fclear {
+      border: none; background: transparent; color: inherit; cursor: pointer;
+      font-size: 0.8rem; line-height: 1; padding: 2px;
+    }
+    .file-chip .fclear:hover { color: var(--danger); }
+    .input-area.drop { border-radius: 10px; box-shadow: 0 0 0 3px var(--accent-weak); }
+    .input-area textarea.drop { border-color: var(--accent); border-style: dashed; }
   </style>
 </head>
 <body data-i18n-doc="crc.doc">
@@ -148,6 +170,15 @@
             <div class="input-area">
               <textarea id="data-input" spellcheck="false" placeholder="31 32 33 34"></textarea>
             </div>
+            <div class="file-row">
+              <button type="button" class="file-btn" id="file-btn" data-i18n="crc.fileBtn">📎 上传 TXT 计算</button>
+              <input type="file" id="file-input" accept=".txt,.csv,.log,.md,.json,.xml,.bin,.dat,.hex" style="display:none;">
+              <span class="file-chip" id="file-chip" style="display:none;" data-i18n-title="crc.fileHint" title="">
+                📎 <span class="fname" id="file-name"></span><span class="fsize" id="file-size"></span>
+                <button type="button" class="fclear" id="file-clear" title="✕">✕</button>
+              </span>
+            </div>
+            <p class="mode-hint" id="file-hint" style="display:none;"></p>
           </div>
         </section>
 
@@ -199,6 +230,7 @@
         <li data-i18n="crc.t1"></li>
         <li data-i18n="crc.t2"></li>
         <li data-i18n="crc.t3"></li>
+        <li data-i18n="crc.t4"></li>
       </ul>
     </section>
   </main>
@@ -341,9 +373,8 @@
         }
         return tmp;
       }
-      /* 与 Python crc_generate 逐行等价；统一使用 BigInt（JS 32 位移位运算
-         对 width=32 会溢出回绕，BigInt 对 1~64 位全部精确） */
-      function crcGenerate(width, poly, init, refIn, refOut, xorOut, data) {
+      /* 与 Python crc_generate 逐行等价的参考实现（BigInt 逐位） */
+      function crcBitwise(width, poly, init, refIn, refOut, xorOut, data) {
         if (!data.length) return 0n;
         var W = BigInt(width);
         var topBit = 1n << (W - 1n);
@@ -362,6 +393,54 @@
         }
         if (refOut) crc = reverseBitsBig(crc, width);
         return (crc ^ xor2) & mask;
+      }
+
+      /* ---------- 查表加速（宽度 ≥ 8）：与逐位算法严格等价，用于文件级数据量 ---------- */
+      var rev8tab = null; /* 单字节位反转查找表 */
+      function getRev8() {
+        if (!rev8tab) {
+          rev8tab = [];
+          for (var b = 0; b < 256; b++) rev8tab.push(Number(reverseBitsBig(BigInt(b), 8)));
+        }
+        return rev8tab;
+      }
+      var tableCache = { key: '', tbl: null };
+      function getTable(width, poly, refIn) {
+        var key = width + '/' + poly + '/' + refIn;
+        if (tableCache.key === key) return tableCache.tbl;
+        var mask = (1n << BigInt(width)) - 1n;
+        var p2 = BigInt(poly) & mask;
+        var top = BigInt(width - 1);
+        var tbl = [];
+        for (var b = 0; b < 256; b++) {
+          var dat = BigInt(refIn ? getRev8()[b] : b);
+          var c = 0n;
+          for (var i = 0; i < 8; i++) {
+            var bit = ((c >> top) & 1n) ^ ((dat >> BigInt(7 - i)) & 1n);
+            c = (c << 1n) & mask;
+            if (bit) c ^= p2;
+          }
+          tbl.push(c);
+        }
+        tableCache = { key: key, tbl: tbl };
+        return tbl;
+      }
+      function crcGenerate(width, poly, init, refIn, refOut, xorOut, data) {
+        if (!data.length) return 0n;
+        if (width < 8 || data.length < 8) return crcBitwise(width, poly, init, refIn, refOut, xorOut, data);
+        var mask = (1n << BigInt(width)) - 1n;
+        var crc = BigInt(init) & mask;
+        var tbl = getTable(width, poly, refIn);
+        var shift = BigInt(width - 8);
+        var r8 = refIn ? getRev8() : null;
+        for (var k = 0; k < data.length; k++) {
+          var hi = Number((crc >> shift) & 0xFFn);
+          /* REFIN 时寄存器高字节与输入字节都需按位反转后才能在查表索引中合并 */
+          var idx = refIn ? r8[hi] ^ data[k] : hi ^ data[k];
+          crc = ((crc << 8n) & mask) ^ tbl[idx];
+        }
+        if (refOut) crc = reverseBitsBig(crc, width);
+        return (crc ^ BigInt(xorOut)) & mask;
       }
 
       /* ---------- GBK 编码（基于 gbk-enc.js 索引串） ---------- */
@@ -392,6 +471,7 @@
 
       /* ---------- 输入解析 ---------- */
       var state = { mode: 'hex' };
+      var fileData = null; /* 上传文件后优先生效：{ name, bytes }，按原始字节计算 */
       function parseHexInput(text) {
         var parts = text.trim().split(/\s+/).filter(function (p) { return p.length; });
         var hexStr = '';
@@ -422,6 +502,7 @@
         return out;
       }
       function currentData() {
+        if (fileData) return fileData.bytes;
         var text = $('data-input').value;
         if (state.mode === 'hex') {
           var bytes = parseHexInput(text);
@@ -525,8 +606,8 @@
         var data = currentData();
         var crc = crcGenerate(p.width, p.poly, p.init, p.refIn, p.refOut, p.xorOut, data);
 
-        $('summary').textContent = (state.mode === 'hex' ? 'HEX' : 'TEXT') +
-          ' · ' + data.length + ' ' + I18N.t('crc.bytes');
+        var srcLabel = fileData ? '📎 ' + fileData.name : (state.mode === 'hex' ? 'HEX' : 'TEXT');
+        $('summary').textContent = srcLabel + ' · ' + data.length + ' ' + I18N.t('crc.bytes');
         $('r-hex').textContent = toW(crc, 16, Math.floor(p.width / 4));
         $('r-dec').textContent = crc.toString(10);
         $('r-oct').textContent = crc.toString(8);
@@ -589,6 +670,32 @@
         if (sel.value !== cur) { sel.value = 'CRC-32'; }
       }
 
+      /* ---------- 文件上传：按原始字节计算 ---------- */
+      function setFile(name, bytes) {
+        fileData = { name: name, bytes: bytes };
+        $('file-name').textContent = name;
+        $('file-size').textContent = ' · ' + bytes.length + ' B';
+        $('file-chip').style.display = '';
+        $('file-hint').textContent = I18N.t('crc.fileHint');
+        $('file-hint').style.display = '';
+        calc();
+      }
+      function clearFile(silent) {
+        fileData = null;
+        $('file-chip').style.display = 'none';
+        $('file-hint').style.display = 'none';
+        if (!silent) calc();
+      }
+      function handleFiles(files) {
+        var f = files && files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          setFile(f.name, Array.prototype.slice.call(new Uint8Array(e.target.result)));
+        };
+        reader.readAsArrayBuffer(f);
+      }
+
       /* ---------- 事件绑定 ---------- */
       function bind() {
         $('model-select').addEventListener('change', function () { loadPreset(this.value); });
@@ -608,12 +715,46 @@
             calc();
           });
         });
-        $('data-input').addEventListener('input', calc);
+        $('data-input').addEventListener('input', function () {
+          if (fileData) clearFile(true); /* 编辑输入框 → 退出文件模式 */
+          calc();
+        });
         ['rev-word', 'rev-data'].forEach(function (id) { $(id).addEventListener('change', calc); });
         $('enc-select').addEventListener('change', calc);
+
+        $('file-btn').addEventListener('click', function () { $('file-input').click(); });
+        $('file-input').addEventListener('change', function () {
+          if (this.files.length) handleFiles(this.files);
+          this.value = '';
+        });
+        $('file-clear').addEventListener('click', function () { clearFile(); });
+        /* 输入区与整页均可拖拽文件 */
+        ['dragover', 'dragenter'].forEach(function (ev) {
+          $('data-input').addEventListener(ev, function (e) {
+            e.preventDefault();
+            $('data-input').classList.add('drop');
+          });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+          $('data-input').addEventListener(ev, function (e) {
+            e.preventDefault();
+            $('data-input').classList.remove('drop');
+          });
+        });
+        $('data-input').addEventListener('drop', function (e) {
+          e.stopPropagation();
+          if (e.dataTransfer && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        });
+        document.addEventListener('dragover', function (e) { e.preventDefault(); });
+        document.addEventListener('drop', function (e) {
+          e.preventDefault();
+          if (e.dataTransfer && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        });
+
         document.addEventListener('langchange', function () {
           buildModelSelect();
           updateHint();
+          if (fileData) $('file-hint').textContent = I18N.t('crc.fileHint');
           calc();
         });
       }
@@ -636,11 +777,15 @@
       /* 供自动化测试 */
       window.__CRC_TEST = {
         crcGenerate: crcGenerate,
+        crcBitwise: crcBitwise,
         PRESETS: PRESETS,
         parseHexInput: parseHexInput,
         gbkEncode: gbkEncode,
         currentData: currentData,
-        readParams: readParams
+        readParams: readParams,
+        simulateFile: function (name, bytes) { setFile(name, bytes); },
+        clearFile: function () { clearFile(true); },
+        fileState: function () { return fileData ? { name: fileData.name, n: fileData.bytes.length } : null; }
       };
     })();
   </script>
