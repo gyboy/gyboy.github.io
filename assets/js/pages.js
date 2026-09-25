@@ -37,8 +37,8 @@ var SITE_PAGES = [
     icon: "🧮",
     title: { zh: "CRC 校验计算器", en: "CRC Calculator" },
     desc: {
-      zh: "CRC-4 ~ CRC-32 共 22 种预设模型与全参数自定义：Hex / ASCII 输入，实时输出 Hex、二进制与传输字节序列。",
-      en: "22 preset CRC models (CRC-4 … CRC-32) with fully custom parameters: Hex / ASCII input, live Hex, binary and wire byte order output."
+      zh: "移植桌面版 CRC 计算器：99 种预设（CRC-3 ~ CRC-64）与全参数自定义，HEX / TEXT 双输入（Reverse Word / Data、GBK），输出 HEX / DEC / OCT / BIN 与位显示。",
+      en: "Desktop CRC calculator ported to web: 99 presets (CRC-3 … CRC-64) with custom parameters, HEX / TEXT input (Reverse Word / Data, GBK), HEX / DEC / OCT / BIN results and bit view."
     },
     tag: { zh: "工具", en: "Tool" },
   },

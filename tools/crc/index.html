@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CRC 计算工具 · Gyboy 的小站</title>
-  <meta name="description" content="CRC 在线计算器：支持 CRC-4 ~ CRC-32 共 22 种常用预设模型与全参数自定义（WIDTH/POLY/INIT/XOROUT/REFIN/REFOUT），Hex 与 ASCII 双输入，实时输出十六进制、二进制与传输字节序列。">
+  <meta name="description" content="CRC 在线计算器（桌面版移植）：99 种预设模型（CRC-3 ~ CRC-64）与全参数自定义（WIDTH/POLY/INIT/XOROUT/REFIN/REFOUT），HEX 与 TEXT 双输入（Reverse Word / Reverse Data、GBK 编码），实时输出 HEX / DEC / OCT / BIN 与 64 位位显示。">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
   <script>
     /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
@@ -15,6 +15,54 @@
     })();
   </script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <style>
+    /* ---------- CRC 页专属：位宽步进器与位点阵 ---------- */
+    .stepper { display: flex; align-items: center; gap: 6px; }
+    .stepper button {
+      width: 30px; height: 34px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); font-size: 1rem; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .stepper button:hover { border-color: var(--accent); }
+    .stepper input {
+      width: 100%; min-width: 0; text-align: center;
+      padding: 7px 6px; font-size: 0.9rem; font-family: ui-monospace, Consolas, monospace;
+      color: var(--text); background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; outline: none;
+    }
+    .stepper input:focus { border-color: var(--accent); }
+    .params-grid input[type="text"]:disabled, .params-grid .stepper input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .bit-wrap { overflow-x: auto; padding-bottom: 4px; }
+    .bit-grid {
+      display: grid;
+      grid-template-columns: repeat(32, minmax(17px, 1fr));
+      gap: 3px;
+      min-width: 580px;
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    }
+    .bit-cell { text-align: center; }
+    .bit-cell .bit-num { display: block; font-size: 0.58rem; color: var(--text-2); line-height: 1.4; }
+    .bit-cell .bit-val {
+      display: flex; align-items: center; justify-content: center;
+      height: 22px; border: 1px solid var(--border); border-radius: 5px;
+      background: var(--bg); font-size: 0.72rem; color: var(--text);
+    }
+    .bit-cell.on .bit-val { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    .bit-cell.off .bit-val { opacity: 0.25; }
+    .hex-opts { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+    .hex-opts label, .enc-row label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; color: var(--text-2); cursor: pointer;
+    }
+    .hex-opts input, .enc-row input { accent-color: var(--accent); }
+    .enc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .enc-row select {
+      padding: 6px 10px; font-size: 0.85rem; font-family: inherit; color: var(--text);
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none; cursor: pointer;
+    }
+    .enc-row select:focus { border-color: var(--accent); }
+  </style>
 </head>
 <body data-i18n-doc="crc.doc">
   <header class="site-header">
@@ -29,68 +77,83 @@
 
   <main class="container page-main">
     <h1 class="page-title" data-i18n="crc.h1">CRC 校验计算器</h1>
-    <p class="page-subtitle" data-i18n="crc.subtitle">
-      CRC Calculator —— 支持 CRC-4 ~ CRC-32 共 22 种常用预设模型与全参数自定义：输入 Hex 或 ASCII 数据，
-      实时计算校验值（Hex / Bin / 传输字节序列）。
-    </p>
+    <p class="page-subtitle" data-i18n="crc.subtitle"></p>
 
     <div class="calc-grid">
-      <!-- ============ 算法模型区 ============ -->
+      <!-- ============ 模型与参数 ============ -->
       <section class="panel">
         <h2 data-i18n="crc.model">算法模型</h2>
-
         <div class="select-wrap">
           <select id="model-select" aria-label="CRC model"></select>
         </div>
 
-        <h2 class="result-sub" style="font-size: 0.85rem;" data-i18n="crc.customGrp">模型参数（选预设时只读，选择"自定义"后可编辑）</h2>
+        <h2 class="result-sub" style="font-size: 0.85rem;" data-i18n="crc.params">CRC 参数</h2>
         <div class="params-grid">
-          <div class="pfield">
-            <label for="p-width" data-i18n="crc.width">宽度 WIDTH</label>
-            <select id="p-width"></select>
+          <div class="pfield" style="grid-column: 1 / -1;">
+            <label data-i18n="crc.width">位宽 WIDTH</label>
+            <div class="stepper">
+              <button type="button" id="bit-minus" aria-label="-">−</button>
+              <input id="p-width" type="text" inputmode="numeric" value="32">
+              <button type="button" id="bit-plus" aria-label="+">+</button>
+            </div>
           </div>
           <div class="pfield">
             <label for="p-poly" data-i18n="crc.poly">多项式 POLY</label>
-            <input id="p-poly" type="text" value="8005" spellcheck="false" autocomplete="off">
+            <input id="p-poly" type="text" value="0x04C11DB7" spellcheck="false" autocomplete="off">
           </div>
           <div class="pfield">
             <label for="p-init" data-i18n="crc.init">初始值 INIT</label>
-            <input id="p-init" type="text" value="FFFF" spellcheck="false" autocomplete="off">
+            <input id="p-init" type="text" value="0xFFFFFFFF" spellcheck="false" autocomplete="off">
           </div>
           <div class="pfield">
             <label for="p-xor" data-i18n="crc.xorout">结果异或 XOROUT</label>
-            <input id="p-xor" type="text" value="0000" spellcheck="false" autocomplete="off">
+            <input id="p-xor" type="text" value="0xFFFFFFFF" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="pfield">
+            <label for="p-check" data-i18n="crc.check">Check 校验值</label>
+            <input id="p-check" type="text" value="" readonly disabled>
           </div>
           <div class="check-row">
             <label><input id="p-refin" type="checkbox"> <span data-i18n="crc.refin">输入反转 REFIN</span></label>
             <label><input id="p-refout" type="checkbox"> <span data-i18n="crc.refout">输出反转 REFOUT</span></label>
           </div>
         </div>
-        <p class="mode-hint" id="param-echo" style="margin-top: 12px;"></p>
       </section>
 
-      <!-- ============ 输入 + 结果区 ============ -->
+      <!-- ============ 输入 + 结果 ============ -->
       <div class="col-stack">
         <section class="panel">
           <div class="results-head">
             <h2 data-i18n="crc.dataLabel">输入数据</h2>
             <div class="seg" id="seg-mode">
-              <button type="button" class="seg-btn active" data-mode="hex" data-i18n="crc.hex">十六进制</button>
-              <button type="button" class="seg-btn" data-mode="ascii" data-i18n="crc.ascii">ASCII 文本</button>
+              <button type="button" class="seg-btn active" data-mode="hex" data-i18n="crc.hex">HEX</button>
+              <button type="button" class="seg-btn" data-mode="text" data-i18n="crc.ascii">TEXT</button>
             </div>
           </div>
+
           <div class="field" style="margin-top: 14px;">
             <label for="data-input"><span data-i18n="crc.dataLabel">输入数据</span><span class="hint" id="input-hint"></span></label>
+            <div class="hex-opts" id="hex-opts">
+              <label><input id="rev-word" type="checkbox"> <span data-i18n="crc.revWord">Reverse Word（每 4 字节反序）</span></label>
+              <label><input id="rev-data" type="checkbox"> <span data-i18n="crc.revData">Reverse Data（整体倒序）</span></label>
+            </div>
+            <div class="enc-row" id="enc-row" style="display:none;">
+              <label for="enc-select" data-i18n="crc.encoding">编码</label>
+              <select id="enc-select">
+                <option value="UTF-8" selected>UTF-8</option>
+                <option value="GBK">GBK</option>
+                <option value="ASCII">ASCII</option>
+              </select>
+            </div>
             <div class="input-area">
               <textarea id="data-input" spellcheck="false" placeholder="31 32 33 34"></textarea>
             </div>
           </div>
-          <div id="error-box" class="error-box" role="alert"></div>
         </section>
 
         <section class="panel">
           <div class="results-head">
-            <h2 data-i18n="crc.result">校验结果</h2>
+            <h2 data-i18n="crc.result">计算结果</h2>
             <span id="summary" class="summary"></span>
           </div>
 
@@ -98,28 +161,32 @@
 
           <div class="resistor-grid">
             <div class="resistor-card">
-              <div class="label" data-i18n="crc.bin">二进制</div>
+              <div class="label">DEC</div>
+              <div class="value" id="r-dec">—</div>
+            </div>
+            <div class="resistor-card">
+              <div class="label">OCT</div>
+              <div class="value" id="r-oct">—</div>
+            </div>
+            <div class="resistor-card">
+              <div class="label">BIN</div>
               <div class="value bin" id="r-bin">—</div>
             </div>
-            <div class="resistor-card">
-              <div class="label" data-i18n="crc.wire">传输字节序列（低位在前）</div>
-              <div class="value bin" id="r-wire">—</div>
-            </div>
-            <div class="resistor-card">
-              <div class="label" data-i18n="crc.bytes">输入字节数</div>
-              <div class="value" id="r-n">—</div>
-            </div>
           </div>
-          <p class="mode-hint" data-i18n="crc.wireNote">高位在左、低位在右；实际发送时请注意高低位字节顺序。</p>
+
+          <h2 class="result-sub" data-i18n="crc.bitGrid">位显示（bit 0 ~ 63）</h2>
+          <div class="bit-wrap">
+            <div class="bit-grid" id="bit-grid"></div>
+          </div>
 
           <details class="formula">
             <summary data-i18n="formula.summary">计算公式与说明</summary>
             <div class="formula-body">
-              <p data-i18n-html="crc.f1">CRC（循环冗余校验）将数据视为一个大多项式，除以生成多项式 POLY，余数即校验值。</p>
-              <p data-i18n-html="crc.f2">POLY：生成多项式系数的十六进制简写（省略最高位），例 0x1021 表示 x¹⁶+x¹²+x⁵+1。</p>
-              <p data-i18n-html="crc.f3">INIT：计算前寄存器的预置值；XOROUT：结果输出前异或的值。</p>
-              <p data-i18n-html="crc.f4">REFIN：每个输入字节是否按位反转（低位先进）；REFOUT：输出寄存器是否整体反转。</p>
-              <p data-i18n-html="crc.f5">本工具采用逐位通用算法，宽度 1 ~ 32 任意配置，与查表实现结果一致。</p>
+              <p data-i18n-html="crc.f1"></p>
+              <p data-i18n-html="crc.f2"></p>
+              <p data-i18n-html="crc.f3"></p>
+              <p data-i18n-html="crc.f4"></p>
+              <p data-i18n-html="crc.f5"></p>
             </div>
           </details>
         </section>
@@ -129,9 +196,9 @@
     <section class="tips">
       <strong data-i18n="tips.title">小提示</strong>
       <ul>
-        <li data-i18n="crc.t1">标准测试向量："123456789" 的 CRC-32 = CBF43926、CRC-16/MODBUS = 4B37、CRC-16/CCITT-FALSE = 29B1，可用它验证配置。</li>
-        <li data-i18n="crc.t2">复制网页上的十六进制数据时注意首尾可能混入不可见字符，先粘贴到文本编辑器检查。</li>
-        <li data-i18n="crc.t3">Modbus / DNP 等协议按低字节在前发送校验值，"传输字节序列"一栏已按此顺序给出。</li>
+        <li data-i18n="crc.t1"></li>
+        <li data-i18n="crc.t2"></li>
+        <li data-i18n="crc.t3"></li>
       </ul>
     </section>
   </main>
@@ -142,296 +209,439 @@
     </div>
   </footer>
 
+  <script src="/assets/js/gbk-enc.js"></script>
   <script src="/assets/js/i18n.js"></script>
   <script src="/assets/js/common.js"></script>
   <script>
     /* ============================================================
-     * CRC 计算逻辑（逐位通用算法，宽度 1~32）
-     *  - 非反转路径（REFIN=false）：寄存器左移，消息字节并入高位
-     *  - 反转路径（REFIN=true）：寄存器右移，使用镜像多项式
-     *  - 结果 = (REFOUT ? 原样 : 位反转后的寄存器) ^ XOROUT
+     * CRC 计算器（桌面版 crc_calculator.py 的网页移植）
+     *  - crcGenerate 与 Python crc_generate 逐行等价：
+     *    MSB 先行逐位算法；REFIN 反转每个输入字节，REFOUT 反转寄存器；
+     *    结果与 XOROUT 异或；空数据输入返回 0。
+     *  - 位宽 1 ~ 64：≤32 用 Number，>32 自动切换 BigInt。
+     *  - 99 个预设参数与 Python CRC_PRESETS 一致；参数修改后自动反向匹配。
+     *  - HEX 输入按空格分段、奇数位段前补 0；Reverse Word 每 4 字节反序；
+     *    Reverse Data 整体倒序；TEXT 支持 UTF-8 / GBK / ASCII。
      * ============================================================ */
     (function () {
+      'use strict';
       function $(id) { return document.getElementById(id); }
 
-      /* 预设模型（参数与通用目录一致，check 值对应输入 "123456789"） */
-      var MODELS = [
-        { id: 'CRC-4/ITU',          w: 4,  poly: '3',        init: '0',        xor: '0',        refin: true,  refout: true  },
-        { id: 'CRC-5/EPC',          w: 5,  poly: '09',       init: '09',       xor: '00',       refin: false, refout: false },
-        { id: 'CRC-5/ITU',          w: 5,  poly: '15',       init: '00',       xor: '00',       refin: true,  refout: true  },
-        { id: 'CRC-5/USB',          w: 5,  poly: '05',       init: '1F',       xor: '1F',       refin: true,  refout: true  },
-        { id: 'CRC-6/ITU',          w: 6,  poly: '03',       init: '00',       xor: '00',       refin: true,  refout: true  },
-        { id: 'CRC-7/MMC',          w: 7,  poly: '09',       init: '00',       xor: '00',       refin: false, refout: false },
-        { id: 'CRC-8',              w: 8,  poly: '07',       init: '00',       xor: '00',       refin: false, refout: false },
-        { id: 'CRC-8/ITU',          w: 8,  poly: '07',       init: '00',       xor: '55',       refin: false, refout: false },
-        { id: 'CRC-8/ROHC',         w: 8,  poly: '07',       init: 'FF',       xor: '00',       refin: true,  refout: true  },
-        { id: 'CRC-8/MAXIM',        w: 8,  poly: '31',       init: '00',       xor: '00',       refin: true,  refout: true  },
-        { id: 'CRC-16/IBM',         w: 16, poly: '8005',     init: '0000',     xor: '0000',     refin: true,  refout: true  },
-        { id: 'CRC-16/MAXIM',       w: 16, poly: '8005',     init: '0000',     xor: 'FFFF',     refin: true,  refout: true  },
-        { id: 'CRC-16/USB',         w: 16, poly: '8005',     init: 'FFFF',     xor: 'FFFF',     refin: true,  refout: true  },
-        { id: 'CRC-16/MODBUS',      w: 16, poly: '8005',     init: 'FFFF',     xor: '0000',     refin: true,  refout: true  },
-        { id: 'CRC-16/CCITT',       w: 16, poly: '1021',     init: '0000',     xor: '0000',     refin: true,  refout: true  },
-        { id: 'CRC-16/CCITT-FALSE', w: 16, poly: '1021',     init: 'FFFF',     xor: '0000',     refin: false, refout: false },
-        { id: 'CRC-16/X25',         w: 16, poly: '1021',     init: 'FFFF',     xor: 'FFFF',     refin: true,  refout: true  },
-        { id: 'CRC-16/XMODEM',      w: 16, poly: '1021',     init: '0000',     xor: '0000',     refin: false, refout: false },
-        { id: 'CRC-16/DNP',         w: 16, poly: '3D65',     init: '0000',     xor: 'FFFF',     refin: true,  refout: true  },
-        { id: 'CRC-32',             w: 32, poly: '04C11DB7', init: 'FFFFFFFF', xor: 'FFFFFFFF', refin: true,  refout: true  },
-        { id: 'CRC-32/BZIP2',       w: 32, poly: '04C11DB7', init: 'FFFFFFFF', xor: 'FFFFFFFF', refin: false, refout: false },
-        { id: 'CRC-32/MPEG-2',      w: 32, poly: '04C11DB7', init: 'FFFFFFFF', xor: '00000000', refin: false, refout: false }
-      ];
+      /* ---------- 预设（与 Python CRC_PRESETS 完全一致） ---------- */
+      var PRESETS = {
+        "CRC-3/GSM": [3, 0x03, 0x00, false, false, 0x07],
+        "CRC-3/ROHC": [3, 0x03, 0x07, true, true, 0x00],
+        "CRC-4/ITU": [4, 0x03, 0x00, true, true, 0x00],
+        "CRC-4/INTERLAKEN": [4, 0x03, 0x0F, false, false, 0x0F],
+        "CRC-5/EPC": [5, 0x09, 0x09, false, false, 0x00],
+        "CRC-5/ITU": [5, 0x15, 0x00, true, true, 0x00],
+        "CRC-5/USB": [5, 0x05, 0x1F, true, true, 0x1F],
+        "CRC-6/CDMA2000-A": [6, 0x27, 0x3F, false, false, 0x00],
+        "CRC-6/CDMA2000-B": [6, 0x07, 0x3F, false, false, 0x00],
+        "CRC-6/DARC": [6, 0x19, 0x00, true, true, 0x00],
+        "CRC-6/ITU": [6, 0x03, 0x00, true, true, 0x00],
+        "CRC-6/GSM": [6, 0x2F, 0x00, false, false, 0x3F],
+        "CRC-7": [7, 0x09, 0x00, false, false, 0x00],
+        "CRC-7/ROHC": [7, 0x4F, 0x7F, true, true, 0x00],
+        "CRC-7/UMTS": [7, 0x45, 0x00, false, false, 0x00],
+        "CRC-8": [8, 0x07, 0x00, false, false, 0x00],
+        "CRC-8/AUTOSAR": [8, 0x2F, 0xFF, false, false, 0xFF],
+        "CRC-8/CDMA2000": [8, 0x9B, 0xFF, false, false, 0x00],
+        "CRC-8/DARC": [8, 0x39, 0x00, true, true, 0x00],
+        "CRC-8/DVB-S2": [8, 0xD5, 0x00, false, false, 0x00],
+        "CRC-8/EBU": [8, 0x1D, 0xFF, true, true, 0x00],
+        "CRC-8/GSM-A": [8, 0x1D, 0x00, false, false, 0x00],
+        "CRC-8/GSM-B": [8, 0x49, 0x00, false, false, 0xFF],
+        "CRC-8/I-CODE": [8, 0x1D, 0xFD, false, false, 0x00],
+        "CRC-8/ITU": [8, 0x07, 0x00, false, false, 0x55],
+        "CRC-8/LTE": [8, 0x9B, 0x00, false, false, 0x00],
+        "CRC-8/MAXIM": [8, 0x31, 0x00, true, true, 0x00],
+        "CRC-8/OPENSAFETY": [8, 0x2F, 0x00, false, false, 0x00],
+        "CRC-8/ROHC": [8, 0x07, 0xFF, true, true, 0x00],
+        "CRC-8/SAE-J1850": [8, 0x1D, 0xFF, false, false, 0xFF],
+        "CRC-8/WCDMA": [8, 0x9B, 0x00, true, true, 0x00],
+        "CRC-10": [10, 0x0233, 0x0000, false, false, 0x0000],
+        "CRC-10/CDMA2000": [10, 0x03D9, 0x03FF, false, false, 0x0000],
+        "CRC-10/GSM": [10, 0x0175, 0x0000, false, false, 0x03FF],
+        "CRC-11": [11, 0x0385, 0x001A, false, false, 0x0000],
+        "CRC-11/UMTS": [11, 0x0307, 0x0000, false, false, 0x0000],
+        "CRC-12/3GPP": [12, 0x080F, 0x0000, false, true, 0x0000],
+        "CRC-12/CDMA2000": [12, 0x0F13, 0x0FFF, false, false, 0x0000],
+        "CRC-12/DECT": [12, 0x080F, 0x0000, false, false, 0x0000],
+        "CRC-12/GSM": [12, 0x0D31, 0x0000, false, false, 0x0FFF],
+        "CRC-13/BBC": [13, 0x1CF5, 0x0000, false, false, 0x0000],
+        "CRC-14/DARC": [14, 0x0805, 0x0000, true, true, 0x0000],
+        "CRC-14/GSM": [14, 0x202D, 0x0000, false, false, 0x3FFF],
+        "CRC-15": [15, 0x4599, 0x0000, false, false, 0x0000],
+        "CRC-15/MPT1327": [15, 0x6815, 0x0000, false, false, 0x0001],
+        "CRC-16/ARC": [16, 0x8005, 0x0000, true, true, 0x0000],
+        "CRC-16/AUG-CCITT": [16, 0x1021, 0x1D0F, false, false, 0x0000],
+        "CRC-16/BUYPASS": [16, 0x8005, 0x0000, false, false, 0x0000],
+        "CRC-16/CCITT-FALSE": [16, 0x1021, 0xFFFF, false, false, 0x0000],
+        "CRC-16/CCITT/KERMIT": [16, 0x1021, 0x0000, true, true, 0x0000],
+        "CRC-16/CDMA2000": [16, 0xC867, 0xFFFF, false, false, 0x0000],
+        "CRC-16/CMS": [16, 0x8005, 0xFFFF, false, false, 0x0000],
+        "CRC-16/CRC-A": [16, 0x1021, 0xC6C6, true, true, 0x0000],
+        "CRC-16/DDS-110": [16, 0x8005, 0x800D, false, false, 0x0000],
+        "CRC-16/DECT-R": [16, 0x0589, 0x0000, false, false, 0x0001],
+        "CRC-16/DECT-X": [16, 0x0589, 0x0000, false, false, 0x0000],
+        "CRC-16/DNP": [16, 0x3D65, 0x0000, true, true, 0xFFFF],
+        "CRC-16/EN-13757": [16, 0x3D65, 0x0000, false, false, 0xFFFF],
+        "CRC-16/GENIBUS": [16, 0x1021, 0xFFFF, false, false, 0xFFFF],
+        "CRC-16/GSM": [16, 0x1021, 0x0000, false, false, 0xFFFF],
+        "CRC-16/LJ1200": [16, 0x6F63, 0x0000, false, false, 0x0000],
+        "CRC-16/MAXIM": [16, 0x8005, 0x0000, true, true, 0xFFFF],
+        "CRC-16/MCRF4XX": [16, 0x1021, 0xFFFF, true, true, 0x0000],
+        "CRC-16/MODBUS": [16, 0x8005, 0xFFFF, true, true, 0x0000],
+        "CRC-16/OPENSAFETY-A": [16, 0x5935, 0x0000, false, false, 0x0000],
+        "CRC-16/OPENSAFETY-B": [16, 0x755B, 0x0000, false, false, 0x0000],
+        "CRC-16/PROFIBUS": [16, 0x1DCF, 0xFFFF, false, false, 0xFFFF],
+        "CRC-16/RIELLO": [16, 0x1021, 0xB2AA, true, true, 0x0000],
+        "CRC-16/T10-DIF": [16, 0x8BB7, 0x0000, false, false, 0x0000],
+        "CRC-16/TELEDISK": [16, 0xA097, 0x0000, false, false, 0x0000],
+        "CRC-16/TMS37157": [16, 0x1021, 0x89EC, true, true, 0x0000],
+        "CRC-16/USB": [16, 0x8005, 0xFFFF, true, true, 0xFFFF],
+        "CRC-16/X-25/CRC-B": [16, 0x1021, 0xFFFF, true, true, 0xFFFF],
+        "CRC-16/XMODEM": [16, 0x1021, 0x0000, false, false, 0x0000],
+        "CRC-24": [24, 0x864CFB, 0xB704CE, false, false, 0x000000],
+        "CRC-24/BLE": [24, 0x00065B, 0x555555, true, true, 0x000000],
+        "CRC-24/FLEXRAY-A": [24, 0x5D6DCB, 0xFEDCBA, false, false, 0x000000],
+        "CRC-24/FLEXRAY-B": [24, 0x5D6DCB, 0xABCDEF, false, false, 0x000000],
+        "CRC-24/INTERLAKEN": [24, 0x328B63, 0xFFFFFF, false, false, 0xFFFFFF],
+        "CRC-24/LTE-A": [24, 0x864CFB, 0x000000, false, false, 0x000000],
+        "CRC-24/LTE-B": [24, 0x800063, 0x000000, false, false, 0x000000],
+        "CRC-30/CDMA": [30, 0x2030B9C7, 0x3FFFFFFF, false, false, 0x3FFFFFFF],
+        "CRC-31/PHILIPS": [31, 0x04C11DB7, 0x7FFFFFFF, false, false, 0x7FFFFFFF],
+        "CRC-32": [32, 0x04C11DB7, 0xFFFFFFFF, true, true, 0xFFFFFFFF],
+        "CRC-32/AUTOSAR": [32, 0xF4ACFB13, 0xFFFFFFFF, true, true, 0xFFFFFFFF],
+        "CRC-32/BZIP2": [32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0xFFFFFFFF],
+        "CRC-32C": [32, 0x1EDC6F41, 0xFFFFFFFF, true, true, 0xFFFFFFFF],
+        "CRC-32D": [32, 0xA833982B, 0xFFFFFFFF, true, true, 0xFFFFFFFF],
+        "CRC-32/MPEG-2": [32, 0x04C11DB7, 0xFFFFFFFF, false, false, 0x00000000],
+        "CRC-32/POSIX": [32, 0x04C11DB7, 0x00000000, false, false, 0xFFFFFFFF],
+        "CRC-32Q": [32, 0x814141AB, 0x00000000, false, false, 0x00000000],
+        "CRC-32/JAMCRC": [32, 0x04C11DB7, 0xFFFFFFFF, true, true, 0x00000000],
+        "CRC-32/XFER": [32, 0x000000AF, 0x00000000, false, false, 0x00000000],
+        "CRC-40/GSM": [40, 0x0004820009, 0x0000000000, false, false, 0xFFFFFFFFFF],
+        "CRC-64": [64, 0x42F0E1EBA9EA3693n, 0x0000000000000000n, false, false, 0x0000000000000000n],
+        "CRC-64/GO-ISO": [64, 0x000000000000001Bn, 0xFFFFFFFFFFFFFFFFn, true, true, 0xFFFFFFFFFFFFFFFFn],
+        "CRC-64-GONES": [64, 0xAD93D23594C935A9n, 0xFFFFFFFFFFFFFFFFn, true, true, 0x0000000000000000n],
+        "CRC-64/WE": [64, 0x42F0E1EBA9EA3693n, 0xFFFFFFFFFFFFFFFFn, false, false, 0xFFFFFFFFFFFFFFFFn],
+        "CRC-64/XZ": [64, 0x42F0E1EBA9EA3693n, 0xFFFFFFFFFFFFFFFFn, true, true, 0xFFFFFFFFFFFFFFFFn]
+      };
       var CUSTOM_ID = '__custom__';
 
-      var state = { modelId: 'CRC-16/MODBUS', mode: 'hex' };
-      var lastCustomSrc = { w: 16, poly: '8005', init: '0000', xor: '0000', refin: true, refout: true };
-
-      var selectEl = $('model-select'), widthEl = $('p-width'), polyEl = $('p-poly'),
-          initEl = $('p-init'), xorEl = $('p-xor'), refinEl = $('p-refin'), refoutEl = $('p-refout');
-      var dataEl = $('data-input'), hintEl = $('input-hint'), errEl = $('error-box'),
-          sumEl = $('summary'), echoEl = $('param-echo');
-      var rHex = $('r-hex'), rBin = $('r-bin'), rWire = $('r-wire'), rN = $('r-n');
-
-      /* ---------- 位工具 ---------- */
-      function reflect(v, n) {
-        var r = 0;
-        for (var i = 0; i < n; i++) if (v & (1 << i)) r |= 1 << (n - 1 - i);
-        return r >>> 0;
-      }
-      function mask(w) { return w >= 32 ? 0xFFFFFFFF : ((1 << w) - 1) >>> 0; }
-      function hexToNum(s) { return /^[0-9a-fA-F]+$/.test(s) ? parseInt(s, 16) : NaN; }
-      function hexPad(v, w) {
-        var digits = Math.ceil(w / 4);
-        var s = (v >>> 0).toString(16).toUpperCase();
-        while (s.length < digits) s = '0' + s;
-        return s;
-      }
-
-      /* ---------- CRC 核心 ---------- */
-      function crcBytes(bytes, m) {
-        var w = m.width, msk = mask(w), poly = m.poly, reg = m.init & msk, k, i, fb, bit;
-        if (!m.refin) {
-          /* 非反转：消息位与寄存器最高位异或后决定是否除以 POLY */
-          for (k = 0; k < bytes.length; k++) {
-            var b = bytes[k];
-            if (w >= 8) {
-              reg = (reg ^ ((b << (w - 8)) >>> 0)) >>> 0;
-              for (i = 0; i < 8; i++) {
-                fb = (reg >>> (w - 1)) & 1;
-                reg = ((reg << 1) & msk) >>> 0;
-                if (fb) reg = (reg ^ poly) >>> 0;
-              }
-            } else {
-              for (i = 7; i >= 0; i--) {
-                bit = (b >> i) & 1;
-                fb = ((reg >>> (w - 1)) & 1) ^ bit;
-                reg = ((reg << 1) & msk) >>> 0;
-                if (fb) reg = (reg ^ poly) >>> 0;
-              }
-            }
-          }
-          if (m.refout) reg = reflect(reg, w);
-        } else {
-          /* 反转：使用镜像多项式右移，消息字节并入低位 */
-          var revpoly = reflect(poly, w);
-          for (k = 0; k < bytes.length; k++) {
-            var b2 = bytes[k];
-            if (w >= 8) {
-              reg = (reg ^ b2) >>> 0;
-              for (i = 0; i < 8; i++) {
-                reg = (reg & 1) ? ((reg >>> 1) ^ revpoly) >>> 0 : (reg >>> 1);
-              }
-            } else {
-              for (i = 0; i <= 7; i++) {
-                bit = (b2 >> i) & 1;
-                fb = (reg & 1) ^ bit;
-                reg = reg >>> 1;
-                if (fb) reg = (reg ^ revpoly) >>> 0;
-              }
-            }
-          }
-          if (!m.refout) reg = reflect(reg, w);
+      /* ---------- 核心算法 ---------- */
+      function reverseBitsBig(data, bitLen) {
+        var tmp = 0n;
+        var d = BigInt(data);
+        for (var i = 0n; i < BigInt(bitLen); i++) {
+          tmp = (tmp << 1n) | (d & 1n);
+          d >>= 1n;
         }
-        return (reg ^ m.xorout) & msk;
+        return tmp;
+      }
+      /* 与 Python crc_generate 逐行等价；统一使用 BigInt（JS 32 位移位运算
+         对 width=32 会溢出回绕，BigInt 对 1~64 位全部精确） */
+      function crcGenerate(width, poly, init, refIn, refOut, xorOut, data) {
+        if (!data.length) return 0n;
+        var W = BigInt(width);
+        var topBit = 1n << (W - 1n);
+        var mask = (1n << W) - 1n;
+        var crc = BigInt(init) & mask;
+        var poly2 = BigInt(poly) & mask, xor2 = BigInt(xorOut) & mask;
+        for (var k = 0; k < data.length; k++) {
+          var dat = BigInt(data[k]);
+          if (refIn) dat = reverseBitsBig(dat, 8);
+          for (var b = 0; b < 8; b++) {
+            var bit = ((crc & topBit) !== 0n ? 1n : 0n) ^ ((dat & 0x80n) !== 0n ? 1n : 0n);
+            dat = (dat << 1n) & 0xFFn;
+            crc = (crc << 1n) & mask;
+            if (bit) crc ^= poly2;
+          }
+        }
+        if (refOut) crc = reverseBitsBig(crc, width);
+        return (crc ^ xor2) & mask;
+      }
+
+      /* ---------- GBK 编码（基于 gbk-enc.js 索引串） ---------- */
+      var gbkMap = null;
+      function gbkEncode(str) {
+        var table = window.GBK_INDEX_STR;
+        if (!table) return null;
+        if (!gbkMap) {
+          gbkMap = {};
+          for (var i = 0; i < table.length; i++) {
+            var c = table.charAt(i);
+            if (c === '\u0000' || (c in gbkMap)) continue;
+            var lead = 0x81 + Math.floor(i / 190), tp = i % 190;
+            gbkMap[c] = tp < 0x3F ? [lead, 0x40 + tp] : [lead, 0x41 + tp];
+          }
+        }
+        var out = [];
+        for (var j = 0; j < str.length; j++) {
+          var ch = str.charAt(j), code = str.charCodeAt(j);
+          if (code < 0x80) { out.push(code); continue; }
+          if (code === 0x20AC) { out.push(0x80); continue; } /* cp936 单字节 € */
+          var m = gbkMap[ch];
+          if (!m) return null; /* 不可映射 → 整体按空数据处理（与源实现一致） */
+          out.push(m[0], m[1]);
+        }
+        return out;
       }
 
       /* ---------- 输入解析 ---------- */
-      function parseInput() {
-        var txt = dataEl.value;
+      var state = { mode: 'hex' };
+      function parseHexInput(text) {
+        var parts = text.trim().split(/\s+/).filter(function (p) { return p.length; });
+        var hexStr = '';
+        for (var i = 0; i < parts.length; i++) {
+          var p = parts[i];
+          if (!/^[0-9a-fA-F]+$/.test(p)) return null;
+          if (p.length % 2 === 1) p = '0' + p;
+          hexStr += p;
+        }
+        var bytes = [];
+        for (var j = 0; j < hexStr.length; j += 2) bytes.push(parseInt(hexStr.substr(j, 2), 16));
+        return bytes;
+      }
+      function textToBytes(text, enc) {
+        if (enc === 'UTF-8') {
+          return Array.prototype.slice.call(new TextEncoder().encode(text));
+        }
+        if (enc === 'GBK') {
+          var b = gbkEncode(text);
+          return b === null ? [] : b;
+        }
+        /* ASCII：非 ASCII 字符 → 空数据（与源实现一致） */
+        for (var i = 0; i < text.length; i++) {
+          if (text.charCodeAt(i) >= 0x80) return [];
+        }
+        var out = [];
+        for (var j = 0; j < text.length; j++) out.push(text.charCodeAt(j));
+        return out;
+      }
+      function currentData() {
+        var text = $('data-input').value;
         if (state.mode === 'hex') {
-          var cleaned = txt.replace(/0[xX]/g, '').replace(/[\s,;:\-]+/g, '');
-          if (!/^[0-9a-fA-F]*$/.test(cleaned) || cleaned.length % 2 !== 0) return { err: 'crc.err.hex' };
-          var bytes = [];
-          for (var i = 0; i < cleaned.length; i += 2) bytes.push(parseInt(cleaned.substr(i, 2), 16));
-          return { bytes: bytes };
-        }
-        var encoded = new TextEncoder().encode(txt);
-        return { bytes: Array.prototype.slice.call(encoded) };
-      }
-
-      /* ---------- 模型参数 ---------- */
-      function currentModel() {
-        if (state.modelId !== CUSTOM_ID) {
-          var m = MODELS.find(function (x) { return x.id === state.modelId; });
-          return {
-            width: m.w,
-            poly: hexToNum(m.poly), init: hexToNum(m.init), xorout: hexToNum(m.xor),
-            refin: m.refin, refout: m.refout
-          };
-        }
-        var w = parseInt(widthEl.value, 10), msk = mask(w);
-        var poly = hexToNum(polyEl.value.trim()), init = hexToNum(initEl.value.trim()), xor = hexToNum(xorEl.value.trim());
-        if (!isFinite(poly) || !isFinite(init) || !isFinite(xor) ||
-            poly > msk || init > msk || xor > msk || poly === 0) return null;
-        return { width: w, poly: poly, init: init, xorout: xor, refin: refinEl.checked, refout: refoutEl.checked };
-      }
-      function modelHexStrs() {
-        if (state.modelId !== CUSTOM_ID) {
-          var m = MODELS.find(function (x) { return x.id === state.modelId; });
-          return { w: m.w, poly: m.poly, init: m.init, xor: m.xor, refin: m.refin, refout: m.refout };
-        }
-        return { w: parseInt(widthEl.value, 10), poly: polyEl.value.trim(), init: initEl.value.trim(),
-                 xor: xorEl.value.trim(), refin: refinEl.checked, refout: refoutEl.checked };
-      }
-
-      /* ---------- 页面渲染 ---------- */
-      function buildModelSelect() {
-        var groups = [
-          { label: 'CRC-4 / 5 / 6 / 7', from: 0, to: 6 },
-          { label: 'CRC-8', from: 6, to: 10 },
-          { label: 'CRC-16', from: 10, to: 19 },
-          { label: 'CRC-32', from: 19, to: MODELS.length }
-        ];
-        selectEl.innerHTML = '';
-        groups.forEach(function (g) {
-          var og = document.createElement('optgroup');
-          og.label = g.label;
-          for (var i = g.from; i < g.to; i++) {
-            var o = document.createElement('option');
-            o.value = MODELS[i].id;
-            o.textContent = MODELS[i].id;
-            og.appendChild(o);
+          var bytes = parseHexInput(text);
+          if (bytes === null) return [];
+          if ($('rev-word').checked) {
+            var arr = [];
+            for (var i = 0; i < bytes.length; i += 4) {
+              var chunk = bytes.slice(i, i + 4).reverse();
+              arr = arr.concat(chunk);
+            }
+            bytes = arr;
           }
-          selectEl.appendChild(og);
-        });
-        var oc = document.createElement('option');
-        oc.value = CUSTOM_ID;
-        oc.textContent = I18N.t('crc.custom');
-        selectEl.appendChild(oc);
-        selectEl.value = state.modelId;
-        if (selectEl.value !== state.modelId) { state.modelId = 'CRC-16/MODBUS'; selectEl.value = state.modelId; }
-      }
-      function buildWidthSelect() {
-        var cur = widthEl.value || '16';
-        widthEl.innerHTML = '';
-        for (var i = 1; i <= 32; i++) {
-          var o = document.createElement('option');
-          o.value = String(i);
-          o.textContent = String(i);
-          widthEl.appendChild(o);
+          if ($('rev-data').checked) bytes.reverse();
+          return bytes;
         }
-        widthEl.value = cur;
-        if (widthEl.value !== cur) widthEl.value = '16';
+        return textToBytes(text, $('enc-select').value);
       }
-      /* 预设：参数只读回显；自定义：可编辑（用上一个预设的参数初始化） */
-      function syncParamInputs() {
-        var isCustom = state.modelId === CUSTOM_ID;
-        var s = modelHexStrs();
-        var digits = Math.ceil(s.w / 4);
-        [polyEl, initEl, xorEl, widthEl, refinEl, refoutEl].forEach(function (el) { el.disabled = !isCustom; });
-        widthEl.value = String(s.w);
-        polyEl.value = s.poly.toUpperCase();
-        initEl.value = s.init.toUpperCase();
-        xorEl.value = s.xor.toUpperCase();
-        refinEl.checked = s.refin;
-        refoutEl.checked = s.refout;
-        echoEl.textContent = 'POLY=' + polyEl.value + '  INIT=' + initEl.value +
-          '  XOROUT=' + xorEl.value + '  REFIN=' + s.refin + '  REFOUT=' + s.refout;
+
+      /* ---------- 参数读写与反向匹配 ---------- */
+      function parseHexField(s, width) {
+        s = String(s).trim().replace(/^0[xX]/, '');
+        if (!/^[0-9a-fA-F]+$/.test(s)) return null;
+        return width > 32 ? BigInt('0x' + s) : parseInt(s, 16);
+      }
+      function readParams() {
+        var width = parseInt($('p-width').value, 10);
+        if (!isFinite(width) || width < 1 || width > 64) return null;
+        var poly = parseHexField($('p-poly').value, width);
+        var init = parseHexField($('p-init').value, width);
+        var xorOut = parseHexField($('p-xor').value, width);
+        if (poly === null || init === null || xorOut === null) return null;
+        return { width: width, poly: poly, init: init, refIn: $('p-refin').checked, refOut: $('p-refout').checked, xorOut: xorOut };
+      }
+      function hexField(v) { return '0x' + BigInt(v).toString(16).toUpperCase(); }
+      /* 参数变化后反向匹配预设（与 Python match_crc_preset 一致） */
+      function matchPreset() {
+        var p = readParams();
+        if (!p) { $('model-select').value = CUSTOM_ID; return; }
+        var check = crcGenerate(p.width, p.poly, p.init, p.refIn, p.refOut, p.xorOut,
+          [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39]);
+        $('p-check').value = '0x' + check.toString(16).toUpperCase();
+        var matched = CUSTOM_ID;
+        for (var name in PRESETS) {
+          var m = PRESETS[name];
+          if (m[0] === p.width &&
+              BigInt(m[1]) === BigInt(p.poly) && BigInt(m[2]) === BigInt(p.init) &&
+              m[3] === p.refIn && m[4] === p.refOut && BigInt(m[5]) === BigInt(p.xorOut)) { matched = name; break; }
+        }
+        $('model-select').value = matched;
+      }
+      function loadPreset(name) {
+        $('model-select').value = name;
+        if (name !== CUSTOM_ID) {
+          var m = PRESETS[name];
+          $('p-width').value = String(m[0]);
+          $('p-refin').checked = m[3];
+          $('p-refout').checked = m[4];
+          $('p-poly').value = hexField(m[1]);
+          $('p-init').value = hexField(m[2]);
+          $('p-xor').value = hexField(m[5]);
+          var check = crcGenerate(m[0], m[1], m[2], m[3], m[4], m[5],
+            [0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39]);
+          $('p-check').value = '0x' + check.toString(16).toUpperCase();
+        }
+        calc();
+      }
+
+      /* ---------- 位显示点阵（64 格，两行 32，与源实现布局一致） ---------- */
+      var bitCells = [];
+      function buildBitGrid() {
+        var grid = $('bit-grid');
+        grid.innerHTML = '';
+        bitCells = [];
+        for (var bit = 63; bit >= 0; bit--) {
+          var cell = document.createElement('div');
+          cell.className = 'bit-cell';
+          var num = document.createElement('span');
+          num.className = 'bit-num';
+          num.textContent = String(bit);
+          var val = document.createElement('span');
+          val.className = 'bit-val';
+          cell.appendChild(num);
+          cell.appendChild(val);
+          /* col=(63-bit)%32, row=(63-bit)//32 → MSB 在左 */
+          cell.style.gridColumn = String(((63 - bit) % 32) + 1);
+          cell.style.gridRow = String(Math.floor((63 - bit) / 32) * 2 + 1);
+          grid.appendChild(cell);
+          bitCells.push({ bit: bit, val: val, cell: cell });
+        }
+      }
+
+      /* ---------- 渲染 ---------- */
+      function toW(n, radix, minLen) {
+        var s = n.toString(radix).toUpperCase();
+        while (s.length < minLen) s = '0' + s;
+        return s;
+      }
+      function calc() {
+        var p = readParams();
+        if (!p) return; /* 参数非法时保持现状（与源实现一致） */
+        var data = currentData();
+        var crc = crcGenerate(p.width, p.poly, p.init, p.refIn, p.refOut, p.xorOut, data);
+
+        $('summary').textContent = (state.mode === 'hex' ? 'HEX' : 'TEXT') +
+          ' · ' + data.length + ' ' + I18N.t('crc.bytes');
+        $('r-hex').textContent = toW(crc, 16, Math.floor(p.width / 4));
+        $('r-dec').textContent = crc.toString(10);
+        $('r-oct').textContent = crc.toString(8);
+        $('r-bin').textContent = toW(crc, 2, p.width);
+        for (var i = 0; i < bitCells.length; i++) {
+          var bc = bitCells[i];
+          if (bc.bit < p.width) {
+            var v = Number((BigInt(crc) >> BigInt(bc.bit)) & 1n);
+            bc.val.textContent = String(v);
+            bc.cell.className = 'bit-cell' + (v ? ' on' : '');
+          } else {
+            bc.val.textContent = '';
+            bc.cell.className = 'bit-cell off';
+          }
+        }
       }
       function updateHint() {
-        hintEl.textContent = I18N.t(state.mode === 'hex' ? 'crc.hexHint' : 'crc.asciiHint');
-        dataEl.placeholder = state.mode === 'hex' ? '31 32 33 34' : '123456789';
+        $('input-hint').textContent = I18N.t(state.mode === 'hex' ? 'crc.hexHint' : 'crc.asciiHint');
+        $('data-input').placeholder = state.mode === 'hex' ? '31 32 33 34' : '123456789';
+        $('hex-opts').style.display = state.mode === 'hex' ? '' : 'none';
+        $('enc-row').style.display = state.mode === 'text' ? '' : 'none';
       }
-      function fail(key) {
-        errEl.textContent = I18N.t(key);
-        errEl.style.display = 'block';
-        rHex.textContent = '—'; rBin.textContent = '—'; rWire.textContent = '—'; rN.textContent = '—';
-        sumEl.textContent = '';
-      }
-      function hideError() { errEl.style.display = 'none'; }
       function refreshChips() {
         document.querySelectorAll('#seg-mode .seg-btn').forEach(function (b) {
           b.classList.toggle('active', b.getAttribute('data-mode') === state.mode);
         });
       }
 
-      function recalc() {
-        var parsed = parseInput();
-        if (parsed.err) return fail(parsed.err);
-        var bytes = parsed.bytes;
-        if (!bytes.length) return fail('crc.err.empty');
-        var m = currentModel();
-        if (!m) return fail('crc.err.params');
-        hideError();
-
-        var v = crcBytes(bytes, m);
-        var id = state.modelId === CUSTOM_ID ? I18N.t('crc.custom') : state.modelId;
-        rHex.textContent = hexPad(v, m.width);
-        rBin.textContent = (v >>> 0).toString(2).padStart(m.width, '0');
-        var hexStr = hexPad(v, m.width);
-        if (hexStr.length % 2) hexStr = '0' + hexStr;
-        var outBytes = [];
-        for (var i = 0; i < hexStr.length; i += 2) outBytes.push(hexStr.substr(i, 2));
-        var lsbFirst = m.refin && m.refout;
-        if (lsbFirst) outBytes.reverse();
-        rWire.textContent = outBytes.join(' ');
-        rN.textContent = String(bytes.length);
-        sumEl.textContent = id + ' · WIDTH ' + m.width + ' · ' + (lsbFirst ? 'LSB' : 'MSB') + ' first';
+      /* ---------- 模型下拉（按位宽分组） ---------- */
+      function buildModelSelect() {
+        var sel = $('model-select');
+        var groups = [
+          { label: 'CRC-3 ~ 7', test: function (w) { return w <= 7; } },
+          { label: 'CRC-8', test: function (w) { return w === 8; } },
+          { label: 'CRC-10 ~ 15', test: function (w) { return w >= 10 && w <= 15; } },
+          { label: 'CRC-16', test: function (w) { return w === 16; } },
+          { label: 'CRC-24 ~ 31', test: function (w) { return w >= 24 && w <= 31; } },
+          { label: 'CRC-32', test: function (w) { return w === 32; } },
+          { label: 'CRC-40 / 64', test: function (w) { return w >= 40; } }
+        ];
+        var cur = sel.value || 'CRC-32';
+        sel.innerHTML = '';
+        groups.forEach(function (g) {
+          var og = document.createElement('optgroup');
+          og.label = g.label;
+          for (var name in PRESETS) {
+            if (!g.test(PRESETS[name][0])) continue;
+            var o = document.createElement('option');
+            o.value = name;
+            o.textContent = name;
+            og.appendChild(o);
+          }
+          if (og.children.length) sel.appendChild(og);
+        });
+        var oc = document.createElement('option');
+        oc.value = CUSTOM_ID;
+        oc.textContent = I18N.t('crc.custom');
+        sel.appendChild(oc);
+        sel.value = cur;
+        if (sel.value !== cur) { sel.value = 'CRC-32'; }
       }
 
       /* ---------- 事件绑定 ---------- */
-      selectEl.addEventListener('change', function () {
-        if (state.modelId !== CUSTOM_ID && selectEl.value === CUSTOM_ID) {
-          /* 进入自定义：以上一个预设的参数作为起点 */
-          var s = modelHexStrs();
-          widthEl.value = String(s.w);
-          polyEl.value = s.poly.toUpperCase();
-          initEl.value = s.init.toUpperCase();
-          xorEl.value = s.xor.toUpperCase();
-          refinEl.checked = s.refin;
-          refoutEl.checked = s.refout;
-        }
-        state.modelId = selectEl.value;
-        syncParamInputs();
-        recalc();
-      });
-      widthEl.addEventListener('change', function () { syncParamInputs(); recalc(); });
-      [polyEl, initEl, xorEl].forEach(function (el) { el.addEventListener('input', recalc); });
-      [refinEl, refoutEl].forEach(function (el) { el.addEventListener('change', recalc); });
-
-      document.querySelectorAll('#seg-mode .seg-btn').forEach(function (b) {
-        b.addEventListener('click', function () {
-          state.mode = b.getAttribute('data-mode');
-          refreshChips();
-          updateHint();
-          recalc();
+      function bind() {
+        $('model-select').addEventListener('change', function () { loadPreset(this.value); });
+        $('bit-minus').addEventListener('click', function () { stepWidth(-1); });
+        $('bit-plus').addEventListener('click', function () { stepWidth(1); });
+        ['p-width', 'p-poly', 'p-init', 'p-xor'].forEach(function (id) {
+          $(id).addEventListener('input', function () { matchPreset(); calc(); });
         });
-      });
-      dataEl.addEventListener('input', recalc);
+        ['p-refin', 'p-refout'].forEach(function (id) {
+          $(id).addEventListener('change', function () { matchPreset(); calc(); });
+        });
+        document.querySelectorAll('#seg-mode .seg-btn').forEach(function (b) {
+          b.addEventListener('click', function () {
+            state.mode = b.getAttribute('data-mode');
+            refreshChips();
+            updateHint();
+            calc();
+          });
+        });
+        $('data-input').addEventListener('input', calc);
+        ['rev-word', 'rev-data'].forEach(function (id) { $(id).addEventListener('change', calc); });
+        $('enc-select').addEventListener('change', calc);
+        document.addEventListener('langchange', function () {
+          buildModelSelect();
+          updateHint();
+          calc();
+        });
+      }
+      function stepWidth(d) {
+        var v = parseInt($('p-width').value, 10);
+        if (!isFinite(v)) return;
+        v = Math.max(1, Math.min(64, v + d));
+        $('p-width').value = String(v);
+        matchPreset();
+        calc();
+      }
 
-      document.addEventListener('langchange', function () {
-        buildModelSelect(); /* "自定义"选项文案跟随语言 */
-        updateHint();
-        recalc();           /* 错误提示等动态文本以新语言重渲染 */
-      });
-
-      buildWidthSelect();
+      buildBitGrid();
       buildModelSelect();
-      syncParamInputs();
       updateHint();
       refreshChips();
-      recalc();
+      bind();
+      loadPreset('CRC-32');
 
-      /* 供自动化测试：标准 check 值批量校验 */
-      window.__CRC_TEST = { MODELS: MODELS, crcBytes: crcBytes, hexPad: hexPad };
+      /* 供自动化测试 */
+      window.__CRC_TEST = {
+        crcGenerate: crcGenerate,
+        PRESETS: PRESETS,
+        parseHexInput: parseHexInput,
+        gbkEncode: gbkEncode,
+        currentData: currentData,
+        readParams: readParams
+      };
     })();
   </script>
 </body>
