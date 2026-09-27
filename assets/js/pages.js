@@ -62,4 +62,14 @@ var SITE_PAGES = [
     },
     tag: { zh: "工具", en: "Tool" },
   },
+  {
+    path: "tools/sensitivity/",
+    icon: "📶",
+    title: { zh: "灵敏度测试分析", en: "Sensitivity Test Analysis" },
+    desc: {
+      zh: "解析 Xplore 灵敏度测试 TXT（V3/V4 格式）：多曲线对比、组合过滤、合格线 PASS/FAIL 判定、统计表格与 TXT/MD/CSV 导出。",
+      en: "Analyze Xplore sensitivity TXT exports (V3/V4): multi-trace charts, profile/rate filters, limit-line PASS/FAIL verdicts, stats table and TXT/MD/CSV exports."
+    },
+    tag: { zh: "工具", en: "Tool" },
+  },
 ];

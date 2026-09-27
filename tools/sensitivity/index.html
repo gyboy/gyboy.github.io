@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>灵敏度测试分析 · Gyboy 的小站</title>
+  <meta name="description" content="Xplore 灵敏度测试数据分析：解析 ##Reader_sensitivity_measurement_V3/V4 格式 TXT，多曲线对比图、调制/速率组合过滤、合格线 PASS/FAIL 判定、可排序统计表格与 TXT / MD 报告 / CSV 导出。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📶</text></svg>">
+  <script src="/assets/js/plotly.min.js" charset="utf-8"></script>
+  <script>
+    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
+    (function () {
+      var t = localStorage.getItem('gyboy-theme');
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <style>
+    /* ============ 灵敏度分析页专属样式 ============ */
+    .sen-main { max-width: none; padding: 24px 16px 40px; }
+    body.sen-wide .site-header .container,
+    body.sen-wide .site-footer .container { max-width: none; }
+    .sen-sub { color: var(--text-2); margin: 0 0 16px; font-size: 0.97rem; }
+
+    .sen-toolbar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 12px 18px; box-shadow: var(--shadow); margin-bottom: 16px;
+    }
+    .sen-toolbar .spacer { flex: 1; }
+    .sen-btn {
+      font-family: inherit; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: 10px; padding: 8px 14px; font-size: 0.88rem;
+      cursor: pointer; transition: border-color 0.15s, transform 0.15s;
+    }
+    .sen-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .sen-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+    .sen-btn.small { padding: 5px 10px; font-size: 0.78rem; border-radius: 8px; }
+    .sen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .sen-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+    .sen-grid > .panel { display: flex; flex-direction: column; overflow: hidden; min-height: 620px; }
+    .panel-head {
+      display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95rem; flex-shrink: 0; flex-wrap: wrap;
+    }
+    .panel-head .spacer { flex: 1; }
+    .panel-body { padding: 12px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+    .tool-sec { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .tool-sec:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .tool-sec h3 { font-size: 0.8rem; font-weight: 700; color: var(--text-2); margin: 0 0 8px; letter-spacing: 0.5px; }
+
+    .sen-drop {
+      border: 1.5px dashed var(--border); border-radius: 12px; padding: 14px; text-align: center;
+      cursor: pointer; font-size: 0.85rem; color: var(--text-2); background: var(--bg);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .sen-drop:hover, .sen-drop.dragover { border-color: var(--accent); color: var(--accent); }
+    .sen-fname { font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-top: 8px; word-break: break-all; }
+
+    .chk-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+    .chk-list label, .chk-row label {
+      display: flex; align-items: center; gap: 6px; font-size: 0.82rem;
+      color: var(--text); cursor: pointer; padding: 2px 0;
+    }
+    .chk-list .cnt { color: var(--text-2); font-size: 0.72rem; }
+    .chk-list input, .chk-row input { accent-color: var(--accent); }
+    .sen-input, .sen-input input[type="text"], .sen-input input[type="number"] {
+      width: 100%; padding: 7px 10px; font-size: 0.86rem; font-family: inherit;
+      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none;
+    }
+    .sen-input input:focus, .sen-input select:focus { border-color: var(--accent); }
+    .sen-input select { font-family: inherit; cursor: pointer; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .grid-2 label { display: block; font-size: 0.72rem; color: var(--text-2); margin-bottom: 3px; }
+    .grid-2 input { width: 100%; padding: 6px 8px; font-size: 0.84rem; font-family: ui-monospace, Consolas, monospace;
+      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; outline: none; }
+    .grid-2 input:focus { border-color: var(--accent); }
+    .limit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; }
+    .limit-row label { flex: 1; font-family: ui-monospace, Consolas, monospace; }
+    .limit-row input[type="number"] { width: 76px; padding: 5px 7px; font-size: 0.8rem;
+      font-family: ui-monospace, Consolas, monospace; color: var(--text); background: var(--bg);
+      border: 1px solid var(--border); border-radius: 7px; outline: none; }
+    .limit-row input[type="number"]:focus { border-color: var(--accent); }
+    .limit-row input[type="checkbox"] { accent-color: var(--accent); }
+
+    #sen-plot { width: 100%; min-height: 430px; }
+
+    .tbl-wrap { overflow: auto; flex: 1; min-height: 0; }
+    .sen-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .sen-table th, .sen-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: right; }
+    .sen-table th {
+      position: sticky; top: 0; z-index: 2; background: var(--bg); text-align: left;
+      font-weight: 600; color: var(--text-2); font-size: 0.75rem; cursor: pointer; user-select: none;
+    }
+    .sen-table th .filter-row { display: none; flex-direction: row; gap: 4px; margin-top: 5px; cursor: default; }
+    .sen-table th.filter-open .filter-row { display: flex; }
+    .sen-table th .filter-row input {
+      width: 100%; min-width: 0; padding: 3px 6px; font-size: 0.72rem; font-family: inherit;
+      color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; outline: none;
+    }
+    .sen-table th .filter-row input:focus { border-color: var(--accent); }
+    .sen-table th .filter-row .range-min, .sen-table th .filter-row .range-max { width: 46%; }
+    .sen-table th.sort-asc::after { content: ' ▲'; color: var(--accent); }
+    .sen-table th.sort-desc::after { content: ' ▼'; color: var(--accent); }
+    .sen-table td { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .sen-table td.name-cell { text-align: left; font-family: inherit; font-weight: 600; }
+    .sen-table tr.active-row { background: var(--accent-weak); }
+    .sen-table tr:hover { background: var(--bg); }
+    .sen-table td.pass { color: var(--success, #059669); font-weight: 700; }
+    .sen-table td.fail { color: var(--danger); font-weight: 700; }
+    .empty-msg { text-align: center; padding: 24px; color: var(--text-2); font-size: 0.85rem; }
+
+    /* 配置对话框 */
+    .sen-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 60;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .sen-overlay.show { display: flex; }
+    .sen-dialog {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      box-shadow: var(--shadow-hover, 0 12px 28px rgba(0,0,0,0.25));
+      width: 560px; max-width: 100%; max-height: 86vh; display: flex; flex-direction: column;
+    }
+    .sen-dialog .dlg-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700;
+    }
+    .sen-dialog .dlg-head button { border: none; background: transparent; color: var(--text-2); font-size: 1.1rem; cursor: pointer; }
+    .sen-dialog .dlg-body { padding: 12px 20px; overflow-y: auto; flex: 1; }
+    .name-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+    .name-row input[type="checkbox"] { accent-color: var(--accent); }
+    .name-row .row-id { font-size: 0.72rem; color: var(--text-2); width: 44px; flex-shrink: 0; font-family: ui-monospace, Consolas, monospace; }
+    .name-row input[type="text"] {
+      flex: 1; min-width: 0; padding: 6px 10px; font-size: 0.86rem; color: var(--text);
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none; font-family: inherit;
+    }
+    .name-row input[type="text"]:focus { border-color: var(--accent); }
+    .name-row .row-act {
+      width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 7px;
+      background: var(--bg); color: var(--text-2); cursor: pointer; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .name-row .row-act:hover { border-color: var(--danger); color: var(--danger); }
+    .name-row.deleted input[type="text"] { text-decoration: line-through; opacity: 0.55; }
+    .name-row.deleted .row-act { border-color: var(--accent); color: var(--accent); }
+    .sen-dialog .dlg-foot {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 14px 20px; border-top: 1px solid var(--border); font-size: 0.82rem; color: var(--text-2);
+    }
+    .sen-dialog .dlg-foot .spacer { flex: 1; }
+    .dlg-foot label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+
+    .pill { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--accent-weak); color: var(--accent); white-space: nowrap; }
+    .pill.gray { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
+
+    @media (max-width: 900px) {
+      .sen-grid { grid-template-columns: minmax(0, 1fr); }
+      .sen-grid > .panel { min-height: auto; }
+      #sen-plot { min-height: 360px; }
+    }
+  </style>
+</head>
+<body class="sen-wide" data-i18n-doc="sen.doc">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
+      <div class="header-actions">
+        <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
+        <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="sen-main">
+    <h1 class="page-title" data-i18n="sen.h1">灵敏度测试分析</h1>
+    <p class="sen-sub" data-i18n="sen.subtitle"></p>
+
+    <!-- 工具栏 -->
+    <div class="sen-toolbar">
+      <span class="pill" id="pill-curves">0</span>
+      <span class="pill gray" id="pill-visible">0</span>
+      <span class="pill gray" id="pill-format">—</span>
+      <span class="spacer"></span>
+      <button id="btn-config" class="sen-btn primary" data-i18n="sen.config" disabled>⚙ 数据配置</button>
+      <button id="btn-export-txt" class="sen-btn" data-i18n="sen.exportTxt" disabled>📤 导出 TXT</button>
+      <button id="btn-export-md" class="sen-btn" data-i18n="sen.exportMd" disabled>📝 导出 MD 报告</button>
+      <button id="btn-export-csv" class="sen-btn" data-i18n="sen.exportCsv" disabled>📄 导出 CSV</button>
+      <button id="btn-export-png" class="sen-btn" data-i18n="sen.exportPng" disabled>📊 导出图表</button>
+    </div>
+
+    <div class="sen-grid">
+      <!-- ============ 左侧控制面板 ============ -->
+      <section class="panel">
+        <div class="panel-head"><span data-i18n="sen.import">数据导入</span></div>
+        <div class="panel-body">
+          <div class="tool-sec">
+            <div class="sen-drop" id="dropzone" data-i18n="sen.dropzone">📂 点击或拖拽上传 TXT</div>
+            <input type="file" id="file-input" accept=".txt,.log" style="display:none;">
+            <div class="sen-fname" id="file-name"></div>
+          </div>
+
+          <div class="tool-sec">
+            <h3 data-i18n="sen.filters">数据过滤</h3>
+            <div class="sen-input" style="margin-bottom: 8px;">
+              <input type="text" id="name-filter" data-i18n-placeholder="sen.namePh" placeholder="输入关键字过滤曲线…">
+            </div>
+            <div class="chk-list" id="filter-values"></div>
+            <div class="chk-row" style="margin-top: 8px;">
+              <label><input type="checkbox" id="col-filter-toggle"> <span data-i18n="sen.colFilter">显示列筛选</span></label>
+            </div>
+          </div>
+
+          <div class="tool-sec">
+            <div class="panel-head" style="border:none; padding: 0 0 6px; justify-content: space-between;">
+              <h3 style="margin:0;" data-i18n="sen.analysis">分析标准</h3>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:0.8rem;color:var(--text-2);">
+                <input type="checkbox" id="analysis-toggle" style="accent-color:var(--accent);">
+                <span data-i18n="sen.col.status">测试结果</span>
+              </label>
+            </div>
+            <div id="limits-list"></div>
+          </div>
+
+          <div class="tool-sec">
+            <h3 data-i18n="sen.display">坐标轴与样式</h3>
+            <div class="sen-input" style="margin-bottom: 8px;">
+              <select id="x-axis-mode">
+                <option value="phase" selected data-i18n="sen.modePhase">相位</option>
+                <option value="power" data-i18n="sen.modePower">功率</option>
+                <option value="blf" data-i18n="sen.modeBlf">BLF</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div><label for="x-min">X Min</label><input id="x-min" type="number" value="0" step="any"></div>
+              <div><label for="x-max">X Max</label><input id="x-max" type="number" value="360" step="any"></div>
+            </div>
+            <div class="grid-2">
+              <div><label for="x-step">X Tick</label><input id="x-step" type="number" value="45" step="any"></div>
+              <div><label for="y-step">Y Tick</label><input id="y-step" type="number" value="1" step="any"></div>
+            </div>
+            <div class="grid-2">
+              <div><label for="y-min">Y Min</label><input id="y-min" type="number" value="-90" step="any"></div>
+              <div><label for="y-max">Y Max</label><input id="y-max" type="number" value="-70" step="any"></div>
+            </div>
+            <div class="grid-2">
+              <div><label for="line-width" data-i18n="sen.lineWidth">线宽</label><input id="line-width" type="number" value="1.5" step="0.5" min="0.5"></div>
+              <div><label for="marker-size" data-i18n="sen.marker">点大小</label><input id="marker-size" type="number" value="4" step="1" min="1"></div>
+            </div>
+            <button id="btn-reset-y" class="sen-btn small" data-i18n="sen.resetY" style="width:100%;">自适应 Y 轴</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 右侧：图表 + 表格 ============ -->
+      <div class="col-stack" style="display:grid; gap:16px; align-content:start; min-width:0;">
+        <section class="panel">
+          <div class="panel-head">
+            <span data-i18n="sen.chart">灵敏度曲线图</span>
+            <span class="spacer"></span>
+            <span style="font-size:0.72rem; color:var(--text-2);" data-i18n="sen.dblHint">双击行高亮对应曲线</span>
+          </div>
+          <div class="panel-body" style="padding:0;">
+            <div id="sen-plot"></div>
+          </div>
+        </section>
+
+        <section class="panel" style="display:flex; flex-direction:column;">
+          <div class="panel-head"><span data-i18n="sen.table">统计表格</span></div>
+          <div class="tbl-wrap">
+            <table class="sen-table" id="stats-table">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+            <div class="empty-msg" id="table-empty" data-i18n="sen.msg.noData">请先导入数据</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- 数据配置对话框 -->
+  <div class="sen-overlay" id="overlay">
+    <div class="sen-dialog" id="config-dialog">
+      <div class="dlg-head">
+        <span data-i18n="sen.dlgTitle">数据配置与导出</span>
+        <button id="dlg-close" title="✕">✕</button>
+      </div>
+      <div class="dlg-body">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;margin-bottom:8px;">
+          <input type="checkbox" id="dlg-select-all" checked> <span data-i18n="sen.selectAll">全选</span>
+        </label>
+        <div id="names-list"></div>
+      </div>
+      <div class="dlg-foot">
+        <span id="dlg-count"></span>
+        <span class="spacer"></span>
+        <button id="dlg-export-txt" class="sen-btn small" data-i18n="sen.exportTxt">📤 导出 TXT</button>
+        <button id="dlg-save" class="sen-btn small primary" data-i18n="sen.save">保存并应用</button>
+        <button id="dlg-close2" class="sen-btn small" data-i18n="sen.close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
+    </div>
+  </footer>
+
+  <script src="/assets/js/i18n.js"></script>
+  <script src="/assets/js/common.js"></script>
+  <script>
+    /* ============================================================
+     * 灵敏度测试分析（Xplore 单文件分析工具的站点化版本）
+     *  - 解析 ##Reader_sensitivity_measurement_V3/V4 数据块 + ##name_of_data_set 命名
+     *  - 多曲线对比图（相位/功率/BLF X 轴）、组合过滤、合格线 PASS/FAIL
+     *  - 可排序统计表格（列筛选、双击行高亮）、配置对话框（重命名/删除）
+     *  - 导出：TXT（仪器格式回写）/ MD 报告 / CSV 原始数据 / 图表 PNG
+     * ============================================================ */
+    (function () {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      const T = k => I18N.t(k);
+      const MONO = 'ui-monospace, "Cascadia Mono", Consolas, monospace';
+      const COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0ea5e9', '#db2777', '#0d9488', '#ea580c', '#4f46e5'];
+      const PROFILES = ['M4', 'M8', 'FM0', 'M2'];
+
+      const state = {
+        datasets: [], activeIndices: [], highlightId: null,
+        xMode: 'phase', sort: { key: 'name', order: 'asc' },
+        limits: {}, analysisEnabled: false,
+        columnFilters: {}, showColumnFilters: false,
+        dataFormat: 'V3', originalContent: '', fileName: ''
+      };
+
+      const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+      const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+      /* 页面动态文案（跟随语言） */
+      const L = {
+        colLabel: { zh: { name: '数据集名称', power: '发射功率', rl: '回波损耗', min: '最小灵敏度', max: '最大灵敏度', avg: '平均灵敏度', range: '灵敏度范围', status: '测试结果' },
+                    en: { name: 'Dataset name', power: 'Tx power', rl: 'Return loss', min: 'Min sens', max: 'Max sens', avg: 'Avg sens', range: 'Sens range', status: 'Status' } },
+        report: {
+          title: { zh: 'Xplore 灵敏度测试数据分析报告', en: 'Xplore Sensitivity Test Analysis Report' },
+          time: { zh: '生成时间', en: 'Generated at' },
+          file: { zh: '数据文件', en: 'Data file' },
+          overview: { zh: '数据概况', en: 'Overview' },
+          total: { zh: '总曲线数', en: 'Total traces' },
+          shown: { zh: '当前显示曲线数', en: 'Shown traces' },
+          limitsSec: { zh: '灵敏度合格线 (dBm) 设置', en: 'Sensitivity limits (dBm)' },
+          combo: { zh: '组合', en: 'Combo' },
+          limitCol: { zh: '合格线 (dBm)', en: 'Limit (dBm)' },
+          noneSet: { zh: '当前未设置任何灵敏度合格线。', en: 'No limits configured.' },
+          summarySec: { zh: '统计摘要', en: 'PASS/FAIL summary' },
+          totalCol: { zh: '总数', en: 'Total' },
+          passCol: { zh: 'PASS', en: 'PASS' },
+          failCol: { zh: 'FAIL', en: 'FAIL' },
+          rateCol: { zh: '合格率', en: 'Pass rate' },
+          overall: { zh: '总体合格率', en: 'Overall pass rate' },
+          totalTests: { zh: '总测试数', en: 'Total tests' },
+          detail: { zh: '详细数据', en: 'Detailed data' },
+          result: { zh: '结果', en: 'Result' }
+        }
+      };
+      const tt = o => { const v = o[I18N.lang()]; return v != null ? v : o.zh; };
+
+      /* ============ 数据解析（与源工具逐行等价） ============ */
+      function parseData(content) {
+        const hasV4 = /##Reader_sensitivity_measurement_V4 begin/.test(content);
+        const hasV3 = /##Reader_sensitivity_measurement_V3 begin/.test(content);
+        state.dataFormat = hasV4 ? 'V4' : (hasV3 ? 'V3' : 'V3');
+        const versionTag = state.dataFormat;
+        const beginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
+        const endMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
+
+        const blocks = content.split(beginMarker);
+        const names = content.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
+        state.datasets = blocks.slice(1).map((block, i) => {
+          const endIdx = block.indexOf(endMarker);
+          const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.split('##')[0].trim();
+          const lines = blockBody.split(/\r?\n/);
+          const data = lines.slice(1).map(l => {
+            const p = l.trim().split(/\s+/);
+            if (p.length < 6) return null;
+            const point = { power: parseFloat(p[0]), sens: parseFloat(p[1]), blf: parseFloat(p[2]), phase: parseFloat(p[3]), rl: parseFloat(p[4]), time: parseFloat(p[5]) };
+            if (p.length >= 7) point.returnPhase = parseFloat(p[6]);
+            return point;
+          }).filter(d => d !== null && !isNaN(d.sens));
+          if (data.length === 0) return null;
+
+          const sens = data.map(d => d.sens);
+          const powers = data.map(d => d.power).filter(p => !isNaN(p));
+          const nameMatch = (names[i] || 'CH_' + i).replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '');
+          return {
+            id: i, name: nameMatch, originalName: nameMatch, data: data, blockContent: blockBody,
+            stats: {
+              min: sens.length ? Math.min(...sens) : NaN,
+              max: sens.length ? Math.max(...sens) : NaN,
+              avg: sens.length ? sens.reduce((a, b) => a + b, 0) / sens.length : NaN,
+              range: sens.length ? Math.max(...sens) - Math.min(...sens) : NaN,
+              powerAvg: powers.length ? powers.reduce((a, b) => a + b, 0) / powers.length : NaN,
+              returnLoss: (data.find(d => !isNaN(d.rl)) || {}).rl || 19.54
+            }
+          };
+        }).filter(ds => ds !== null);
+      }
+
+      function parseProfileAndRate(name) {
+        let profile = '', rate = '';
+        for (const p of PROFILES) if (name.toUpperCase().includes(p)) { profile = p; break; }
+        const m = name.match(/(\d+)K/i);
+        if (m) rate = m[1] + 'K';
+        if (!rate) {
+          const rl = name.match(/RL(\d+)/i);
+          if (rl) rate = 'RL' + rl[1];
+        }
+        return { profile, rate };
+      }
+
+      const columns = () => {
+        const c = [
+          { key: 'name', type: 'text' }, { key: 'powerAvg', type: 'number' }, { key: 'returnLoss', type: 'number' },
+          { key: 'min', type: 'number' }, { key: 'max', type: 'number' }, { key: 'avg', type: 'number' }, { key: 'range', type: 'number' }
+        ];
+        if (state.analysisEnabled) c.push({ key: 'status', type: 'text' });
+        return c;
+      };
+      const colText = key => {
+        const map = { powerAvg: 'power', returnLoss: 'rl' };
+        return tt(L.colLabel)[map[key] || key] || key;
+      };
+
+      function initColumnFilters() {
+        columns().forEach(col => {
+          if (!state.columnFilters[col.key]) {
+            state.columnFilters[col.key] = col.type === 'text' ? { text: '' } : { min: null, max: null };
+          } else if (col.type === 'text' && state.columnFilters[col.key].text === undefined) {
+            state.columnFilters[col.key].text = '';
+          } else if (col.type === 'number') {
+            if (state.columnFilters[col.key].min === undefined) state.columnFilters[col.key].min = null;
+            if (state.columnFilters[col.key].max === undefined) state.columnFilters[col.key].max = null;
+          }
+        });
+      }
+
+      function getLimitForDataset(ds) {
+        const { profile, rate } = parseProfileAndRate(ds.name);
+        const key = profile + '-' + rate;
+        return state.limits[key] !== undefined ? state.limits[key] : -80;
+      }
+
+      /* ============ 导入 ============ */
+      function handleFile(file) {
+        if (!file) return;
+        state.fileName = file.name;
+        $('file-name').textContent = file.name;
+        const reader = new FileReader();
+        reader.onload = e => {
+          state.originalContent = e.target.result;
+          try {
+            parseData(state.originalContent);
+          } catch (err) {
+            alert(T('sen.msg.parseFail') + err.message);
+            return;
+          }
+          if (state.datasets.length === 0) { alert(T('sen.msg.noValid')); return; }
+          afterDataLoaded();
+        };
+        reader.onerror = () => alert(T('sen.msg.readFail'));
+        reader.readAsText(file, 'UTF-8');
+      }
+      function afterDataLoaded() {
+        state.activeIndices = state.datasets.map(d => d.id);
+        state.highlightId = null;
+        if (state.analysisEnabled) buildLimitsPanel();
+        generateProfileFilters();
+        state.columnFilters = {};
+        state.showColumnFilters = false;
+        $('col-filter-toggle').checked = false;
+        initColumnFilters();
+        buildTableHeader();
+        renderTableBody();
+        updateChart();
+        refreshToolbar();
+      }
+      function refreshToolbar() {
+        const has = state.datasets.length > 0;
+        ['btn-config', 'btn-export-txt', 'btn-export-md', 'btn-export-csv', 'btn-export-png'].forEach(id => $(id).disabled = !has);
+        $('table-empty').style.display = has ? 'none' : '';
+        $('pill-curves').textContent = state.datasets.length + T('sen.curves');
+        $('pill-visible').textContent = state.activeIndices.length + T('sen.visible');
+        $('pill-format').textContent = T('sen.fmt') + ': ' + state.dataFormat;
+      }
+
+      /* ============ 过滤 ============ */
+      function generateProfileFilters() {
+        const box = $('filter-values');
+        box.innerHTML = '';
+        const combos = {};
+        state.datasets.forEach(ds => {
+          const { profile, rate } = parseProfileAndRate(ds.name);
+          const key = profile + '-' + rate;
+          (combos[key] = combos[key] || []).push(ds.id);
+        });
+        Object.keys(combos).sort().forEach(key => {
+          const label = document.createElement('label');
+          label.innerHTML = '<input type="checkbox" checked value="' + esc(key) + '"> ' + esc(key) +
+            ' <span class="cnt">(' + combos[key].length + ')</span>';
+          label.querySelector('input').onchange = () => { updateActiveDatasets(); renderTableBody(); updateChart(); };
+          box.appendChild(label);
+        });
+      }
+      function updateActiveDatasets() {
+        const checked = Array.from(document.querySelectorAll('#filter-values input:checked')).map(i => i.value);
+        state.activeIndices = [];
+        checked.forEach(key => {
+          const parts = key.split('-');
+          state.datasets.forEach(ds => {
+            const info = parseProfileAndRate(ds.name);
+            if (info.profile === parts[0] && info.rate === parts[1]) state.activeIndices.push(ds.id);
+          });
+        });
+        applyNameFilter();
+        refreshToolbar();
+      }
+      function applyNameFilter() {
+        const kw = $('name-filter').value.trim().toLowerCase();
+        if (!kw) return;
+        state.activeIndices = state.activeIndices.filter(id => state.datasets.find(d => d.id === id).name.toLowerCase().includes(kw));
+      }
+
+      /* ============ 合格线面板 ============ */
+      function buildLimitsPanel() {
+        const box = $('limits-list');
+        box.innerHTML = '';
+        const combos = new Set();
+        state.datasets.forEach(ds => {
+          const { profile, rate } = parseProfileAndRate(ds.name);
+          if (profile && rate) combos.add(profile + '-' + rate);
+        });
+        combos.forEach(key => {
+          const row = document.createElement('div');
+          row.className = 'limit-row';
+          row.innerHTML = '<label for="limit-' + esc(key) + '">' + esc(key) + '</label>' +
+            '<input type="number" id="limit-' + esc(key) + '" value="' + (state.limits[key] !== undefined ? state.limits[key] : -80) + '" step="0.5">' +
+            '<input type="checkbox" id="show-' + esc(key) + '" checked title="' + esc(T('legend.comp')) + '">';
+          box.appendChild(row);
+          row.querySelector('#limit-' + CSS.escape(key)).onchange = () => {
+            state.limits[key] = parseFloat(row.querySelector('#limit-' + CSS.escape(key)).value);
+            renderTableBody(); updateChart();
+          };
+          row.querySelector('#show-' + CSS.escape(key)).onchange = updateChart;
+        });
+      }
+
+      /* ============ 表格 ============ */
+      function buildTableHeader() {
+        const thead = document.querySelector('#stats-table thead');
+        thead.innerHTML = '';
+        const tr = document.createElement('tr');
+        columns().forEach(col => {
+          const th = document.createElement('th');
+          th.setAttribute('data-col', col.key);
+          if (state.showColumnFilters) th.classList.add('filter-open');
+          const title = document.createElement('span');
+          title.textContent = colText(col.key);
+          title.addEventListener('click', e => {
+            e.stopPropagation();
+            if (state.sort.key === col.key) state.sort.order = state.sort.order === 'asc' ? 'desc' : 'asc';
+            else { state.sort.key = col.key; state.sort.order = 'asc'; }
+            document.querySelectorAll('#stats-table th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+            th.classList.add('sort-' + state.sort.order);
+            renderTableBody();
+          });
+          const fr = document.createElement('div');
+          fr.className = 'filter-row';
+          if (col.type === 'text') {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = T('sen.filterPh');
+            input.value = (state.columnFilters[col.key] || {}).text || '';
+            input.addEventListener('input', e => { state.columnFilters[col.key].text = e.target.value; renderTableBody(); });
+            fr.appendChild(input);
+          } else {
+            const minI = document.createElement('input');
+            minI.type = 'number'; minI.placeholder = T('sen.minPh'); minI.className = 'range-min';
+            minI.value = state.columnFilters[col.key] && state.columnFilters[col.key].min !== null ? state.columnFilters[col.key].min : '';
+            minI.addEventListener('input', e => { state.columnFilters[col.key].min = e.target.value === '' ? null : parseFloat(e.target.value); renderTableBody(); });
+            const maxI = document.createElement('input');
+            maxI.type = 'number'; maxI.placeholder = T('sen.maxPh'); maxI.className = 'range-max';
+            maxI.value = state.columnFilters[col.key] && state.columnFilters[col.key].max !== null ? state.columnFilters[col.key].max : '';
+            maxI.addEventListener('input', e => { state.columnFilters[col.key].max = e.target.value === '' ? null : parseFloat(e.target.value); renderTableBody(); });
+            fr.appendChild(minI); fr.appendChild(maxI);
+          }
+          th.appendChild(title);
+          th.appendChild(fr);
+          tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+        const sorted = document.querySelector('#stats-table th[data-col="' + state.sort.key + '"]');
+        if (sorted) sorted.classList.add('sort-' + state.sort.order);
+      }
+
+      function filteredSortedData() {
+        let list = state.datasets.filter(d => state.activeIndices.includes(d.id));
+        if (state.showColumnFilters) {
+          list = list.filter(ds => {
+            for (const col of columns()) {
+              const f = state.columnFilters[col.key];
+              if (!f) continue;
+              if (col.type === 'text') {
+                const ft = f.text || '';
+                if (ft === '') continue;
+                let cell = '';
+                if (col.key === 'name') cell = ds.name;
+                else if (col.key === 'status' && state.analysisEnabled) cell = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
+                else continue;
+                if (!cell.toLowerCase().includes(ft.toLowerCase())) return false;
+              } else {
+                let v = null;
+                if (col.key === 'powerAvg') v = ds.stats.powerAvg;
+                else if (col.key === 'returnLoss') v = ds.stats.returnLoss;
+                else if (col.key === 'min') v = ds.stats.min;
+                else if (col.key === 'max') v = ds.stats.max;
+                else if (col.key === 'avg') v = ds.stats.avg;
+                else if (col.key === 'range') v = ds.stats.range;
+                if (v === null) continue;
+                if (f.min !== null && v < f.min) return false;
+                if (f.max !== null && v > f.max) return false;
+              }
+            }
+            return true;
+          });
+        }
+        list.sort((a, b) => {
+          let va, vb;
+          const key = state.sort.key;
+          if (key === 'name') { va = a.name; vb = b.name; }
+          else if (key === 'status' && state.analysisEnabled) { va = a.stats.max <= getLimitForDataset(a) ? 0 : 1; vb = b.stats.max <= getLimitForDataset(b) ? 0 : 1; }
+          else {
+            va = a.stats[key]; vb = b.stats[key];
+          }
+          const res = typeof va === 'string' ? va.localeCompare(vb) : ((va > vb) - (va < vb));
+          return state.sort.order === 'asc' ? res : -res;
+        });
+        return list;
+      }
+
+      function renderTableBody() {
+        const tbody = document.querySelector('#stats-table tbody');
+        tbody.innerHTML = '';
+        const list = filteredSortedData();
+        list.forEach(ds => {
+          const tr = document.createElement('tr');
+          if (state.highlightId === ds.id) tr.classList.add('active-row');
+          columns().forEach(col => {
+            const td = document.createElement('td');
+            if (col.key === 'name') { td.className = 'name-cell'; td.textContent = ds.name; }
+            else if (col.key === 'status' && state.analysisEnabled) {
+              const status = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
+              td.textContent = status;
+              td.className = status === 'PASS' ? 'pass' : 'fail';
+            } else if (col.key === 'powerAvg') td.textContent = ds.stats.powerAvg.toFixed(2);
+            else if (col.key === 'returnLoss') td.textContent = ds.stats.returnLoss.toFixed(2);
+            else if (col.key === 'min') td.textContent = ds.stats.min.toFixed(2);
+            else if (col.key === 'max') td.textContent = ds.stats.max.toFixed(2);
+            else if (col.key === 'avg') td.textContent = ds.stats.avg.toFixed(2);
+            else if (col.key === 'range') td.textContent = ds.stats.range.toFixed(2);
+            tr.appendChild(td);
+          });
+          tr.ondblclick = () => {
+            state.highlightId = state.highlightId === ds.id ? null : ds.id;
+            renderTableBody(); updateChart();
+          };
+          tbody.appendChild(tr);
+        });
+      }
+
+      /* ============ 图表 ============ */
+      function themeColors() {
+        const cs = getComputedStyle(document.documentElement);
+        return {
+          paper: cs.getPropertyValue('--surface').trim() || '#fff',
+          grid: isDark() ? '#2d3a4e' : '#eef2f6',
+          text: cs.getPropertyValue('--text').trim() || '#1c1e21',
+          muted: isDark() ? '#4a4a6a' : '#cccccc'
+        };
+      }
+      function updateChart() {
+        if (!window.Plotly) return;
+        const tc = themeColors();
+        const lw = parseFloat($('line-width').value) || 1.5;
+        const ms = parseFloat($('marker-size').value) || 4;
+        const traces = state.datasets.filter(d => state.activeIndices.includes(d.id)).map(ds => {
+          const isH = state.highlightId === null || state.highlightId === ds.id;
+          return {
+            x: ds.data.map(d => d[state.xMode]),
+            y: ds.data.map(d => d.sens),
+            name: ds.name, mode: 'lines+markers', type: 'scatter',
+            line: { width: isH ? lw : 1, color: isH ? COLORS[ds.id % COLORS.length] : tc.muted },
+            marker: { size: ms },
+            opacity: isH ? 1 : 0.25,
+            hovertemplate: '<b>' + esc(ds.name) + '</b><br>' + state.xMode.toUpperCase() + ': %{x}<br>Sens: %{y:.2f} dBm<extra></extra>'
+          };
+        });
+        if (state.analysisEnabled) {
+          const combos = new Set();
+          state.datasets.filter(d => state.activeIndices.includes(d.id)).forEach(ds => {
+            const { profile, rate } = parseProfileAndRate(ds.name);
+            if (profile && rate) combos.add(profile + '-' + rate);
+          });
+          const x0 = parseFloat($('x-min').value), x1 = parseFloat($('x-max').value);
+          combos.forEach(key => {
+            const show = $('show-' + CSS.escape(key)) && $('show-' + CSS.escape(key)).checked;
+            const limit = parseFloat(($('limit-' + CSS.escape(key)) || {}).value);
+            if (show && !isNaN(limit) && isFinite(x0) && isFinite(x1)) {
+              traces.push({
+                x: [x0, x1], y: [limit, limit], mode: 'lines',
+                name: key + ' Limit', line: { color: '#dc2626', dash: 'dash', width: 1.5 },
+                hovertemplate: key + ' Limit: ' + limit + ' dBm<extra></extra>'
+              });
+            }
+          });
+        }
+        const layout = {
+          autosize: true,
+          paper_bgcolor: tc.paper, plot_bgcolor: tc.paper,
+          margin: { t: 30, r: 190, b: 60, l: 60 },
+          font: { color: tc.text, family: 'inherit' },
+          xaxis: {
+            title: { text: state.xMode.toUpperCase() },
+            gridcolor: tc.grid, zerolinecolor: tc.grid,
+            type: state.xMode === 'phase' ? 'linear' : 'linear'
+          },
+          yaxis: { title: { text: 'Sensitivity (dBm)' }, gridcolor: tc.grid, zerolinecolor: tc.grid },
+          showlegend: true,
+          legend: { x: 1.02, y: 1, xanchor: 'left', font: { size: 10, color: tc.text }, bgcolor: 'rgba(0,0,0,0)', bordercolor: tc.grid, borderwidth: 1 },
+          hovermode: 'closest',
+          dragmode: 'pan'
+        };
+        const xr = applyRange($('x-min').value, $('x-max').value, $('x-step').value);
+        const yr = applyRange($('y-min').value, $('y-max').value, $('y-step').value);
+        if (xr.range) layout.xaxis.range = xr.range;
+        if (xr.dtick) layout.xaxis.dtick = xr.dtick;
+        if (yr.range) layout.yaxis.range = yr.range;
+        if (yr.dtick) layout.yaxis.dtick = yr.dtick;
+        Plotly.react('sen-plot', traces.length ? traces : [{ x: [], y: [], mode: 'lines' }], layout, {
+          responsive: true, displaylogo: false,
+          modeBarButtonsToRemove: ['sendDataToCloud', 'lasso2d', 'select2d'],
+          scrollZoom: true,
+          toImageButtonOptions: { format: 'png', filename: 'sensitivity_analysis', scale: 2 }
+        });
+      }
+      function applyRange(minS, maxS, stepS) {
+        const mn = parseFloat(minS), mx = parseFloat(maxS), st = parseFloat(stepS);
+        const out = {};
+        if (isFinite(mn) && isFinite(mx) && mn < mx) out.range = [mn, mx];
+        if (isFinite(st) && st > 0) out.dtick = st;
+        return out;
+      }
+
+      /* ============ 导出 ============ */
+      function download(text, filename, mime) {
+        const blob = new Blob([text], { type: mime + ';charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      /* TXT：按仪器原始格式回写（重命名/删除/导出选择） */
+      function buildTxtExport(nameMap, exportIds) {
+        const versionTag = state.dataFormat;
+        const beginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
+        const endMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
+        const blocks = state.originalContent.split(beginMarker);
+        const originalNames = state.originalContent.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
+        let output = '';
+        for (let i = 1; i < blocks.length; i++) {
+          const origName = (originalNames[i - 1] || '').replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '');
+          const ds = state.datasets.find(d => d.originalName === origName);
+          const dsId = ds ? ds.id : -1;
+          if (!exportIds.has(dsId)) continue;
+          const block = blocks[i];
+          const endIdx = block.indexOf(endMarker);
+          const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.trim();
+          const currentName = nameMap[dsId] || (ds ? ds.name : 'CH_' + (i - 1));
+          output += beginMarker + '\n' + blockBody + '\n' + endMarker + '\n';
+          output += '##name_of_data_set begin\n' + currentName + '\n##name_of_data_set end\n\n';
+        }
+        return output.trim();
+      }
+      /* MD 报告 */
+      function buildMDReport() {
+        const R = L.report, zh = I18N.lang() === 'zh';
+        const lines = [
+          '# 📊 ' + tt(R.title),
+          '> ' + tt(R.time) + ': ' + new Date().toLocaleString(zh ? 'zh-CN' : 'en-US'),
+          '> ' + tt(R.file) + ': ' + (state.fileName || '?'),
+          ''
+        ];
+        lines.push('## 1. ' + tt(R.overview));
+        lines.push('- ' + tt(R.total) + ': ' + state.datasets.length);
+        lines.push('- ' + tt(R.shown) + ': ' + state.activeIndices.length);
+        lines.push('');
+        let sec = 2;
+        if (state.analysisEnabled) {
+          lines.push('## ' + sec + '. ' + tt(R.limitsSec));
+          sec++;
+          const rows = Array.from(document.querySelectorAll('#limits-list .limit-row')).map(row => {
+            const k = row.querySelector('label').textContent;
+            const v = parseFloat(row.querySelector('input[type="number"]').value);
+            return [k, v];
+          });
+          if (rows.length) {
+            lines.push('| ' + tt(R.combo) + ' | ' + tt(R.limitCol) + ' |');
+            lines.push('|------|------|');
+            rows.sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => lines.push('| **' + k + '** | ' + v + ' |'));
+          } else lines.push('- ' + tt(R.noneSet));
+          lines.push('');
+
+          lines.push('## ' + sec + '. ' + tt(R.summarySec));
+          sec++;
+          const shown = state.datasets.filter(d => state.activeIndices.includes(d.id));
+          const summary = {};
+          shown.forEach(ds => {
+            const { profile, rate } = parseProfileAndRate(ds.name);
+            const key = profile + '-' + rate;
+            if (!summary[key]) summary[key] = { total: 0, pass: 0, fail: 0 };
+            summary[key].total++;
+            if (ds.stats.max <= getLimitForDataset(ds)) summary[key].pass++;
+            else summary[key].fail++;
+          });
+          lines.push('| ' + tt(R.combo) + ' | ' + tt(R.totalCol) + ' | ' + tt(R.passCol) + ' | ' + tt(R.failCol) + ' | ' + tt(R.rateCol) + ' |');
+          lines.push('|------|------|------|------|------|');
+          Object.entries(summary).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => {
+            lines.push('| **' + k + '** | ' + v.total + ' | ' + v.pass + ' | ' + v.fail + ' | **' + (v.pass / v.total * 100).toFixed(1) + '%** |');
+          });
+          lines.push('');
+          const tp = Object.values(summary).reduce((s, v) => s + v.pass, 0);
+          const tf = Object.values(summary).reduce((s, v) => s + v.fail, 0);
+          lines.push('### ' + tt(R.overall));
+          lines.push('- ' + tt(R.totalTests) + ': ' + (tp + tf));
+          lines.push('- ' + tt(R.passCol) + ': ' + tp);
+          lines.push('- ' + tt(R.failCol) + ': ' + tf);
+          lines.push('- ' + tt(R.rateCol) + ': **' + (tp + tf > 0 ? (tp / (tp + tf) * 100).toFixed(1) : 0) + '%**');
+          lines.push('');
+        }
+        const cols = columns();
+        lines.push('## ' + sec + '. ' + tt(R.detail));
+        lines.push('| ' + cols.map(c => colText(c.key)).join(' | ') + ' |');
+        lines.push('|' + cols.map(() => '------').join('|') + '|');
+        state.datasets.filter(d => state.activeIndices.includes(d.id)).forEach(ds => {
+          const cells = cols.map(c => {
+            if (c.key === 'name') return ds.name;
+            if (c.key === 'status') {
+              const st = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
+              return '**' + st + '**';
+            }
+            return ds.stats[c.key].toFixed(2);
+          });
+          lines.push('| ' + cells.join(' | ') + ' |');
+        });
+        return lines.join('\n');
+      }
+      /* CSV：全部原始数据点 */
+      function buildCSV() {
+        const v4 = state.dataFormat === 'V4';
+        let csv = v4
+          ? 'Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s),Return Phase (deg)\n'
+          : 'Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s)\n';
+        state.datasets.forEach(ds => {
+          ds.data.forEach(p => {
+            let row = '"' + ds.name.replace(/"/g, '""') + '",' + p.power + ',' + p.sens + ',' + p.blf + ',' + p.phase + ',' + p.rl + ',' + p.time;
+            if (v4) row += p.returnPhase !== undefined ? ',' + p.returnPhase : ',';
+            csv += row + '\n';
+          });
+        });
+        return csv;
+      }
+
+      /* ============ 配置对话框 ============ */
+      let dlgDeleted = new Set(), dlgExportIds = new Set();
+      function updateCount() {
+        $('dlg-count').textContent = tt({ zh: '已选择 %A% / %B% 条曲线用于导出', en: '%A% / %B% traces selected for export' })
+          .replace('%A%', dlgExportIds.size).replace('%B%', state.datasets.length);
+      }
+      function openDialog() {
+        if (!state.datasets.length) { alert(T('sen.msg.noData')); return; }
+        dlgDeleted = new Set();
+        dlgExportIds = new Set(state.datasets.map(d => d.id));
+        const box = $('names-list');
+        box.innerHTML = '';
+        state.datasets.forEach(ds => {
+          const row = document.createElement('div');
+          row.className = 'name-row';
+          row.dataset.id = ds.id;
+          const cb = document.createElement('input');
+          cb.type = 'checkbox'; cb.checked = true;
+          cb.addEventListener('change', () => {
+            if (cb.checked) dlgExportIds.add(ds.id); else dlgExportIds.delete(ds.id);
+            updateCount(); syncSelectAll();
+          });
+          const idl = document.createElement('span');
+          idl.className = 'row-id'; idl.textContent = 'ID ' + ds.id;
+          const nameI = document.createElement('input');
+          nameI.type = 'text'; nameI.value = ds.name; nameI.dataset.id = ds.id;
+          const act = document.createElement('button');
+          act.type = 'button'; act.className = 'row-act'; act.textContent = '✕'; act.title = T('sen.del');
+          act.addEventListener('click', () => {
+            const deleted = dlgDeleted.has(ds.id);
+            if (deleted) {
+              dlgDeleted.delete(ds.id); dlgExportIds.add(ds.id);
+              row.classList.remove('deleted'); cb.checked = true; cb.disabled = false;
+              act.textContent = '✕'; act.title = T('sen.del');
+            } else {
+              dlgDeleted.add(ds.id); dlgExportIds.delete(ds.id);
+              row.classList.add('deleted'); cb.checked = false; cb.disabled = true;
+              act.textContent = '↩'; act.title = T('sen.restore');
+            }
+            updateCount(); syncSelectAll();
+          });
+          row.appendChild(cb); row.appendChild(idl); row.appendChild(nameI); row.appendChild(act);
+          box.appendChild(row);
+        });
+        $('dlg-select-all').checked = true;
+        updateCount();
+        $('overlay').classList.add('show');
+      }
+      function syncSelectAll() {
+        const cbs = document.querySelectorAll('#names-list .name-row input[type="checkbox"]');
+        $('dlg-select-all').checked = Array.from(cbs).every(cb => cb.checked || cb.disabled);
+      }
+      function closeDialog() { $('overlay').classList.remove('show'); }
+      function saveNames() {
+        document.querySelectorAll('#names-list input[type="text"]').forEach(input => {
+          const ds = state.datasets.find(d => d.id === parseInt(input.dataset.id));
+          if (ds && input.value.trim()) ds.name = input.value.trim();
+        });
+        if (dlgDeleted.size > 0) {
+          state.datasets = state.datasets.filter(d => !dlgDeleted.has(d.id));
+          state.datasets.forEach((ds, i) => ds.id = i);
+          state.activeIndices = state.datasets.map(d => d.id);
+          dlgDeleted.clear(); dlgExportIds.clear();
+        }
+        if (state.analysisEnabled) buildLimitsPanel();
+        generateProfileFilters();
+        initColumnFilters();
+        buildTableHeader();
+        renderTableBody();
+        updateChart();
+        refreshToolbar();
+        closeDialog();
+      }
+
+      /* ============ 主题 / 语言跟随 ============ */
+      new MutationObserver(() => updateChart())
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      document.addEventListener('langchange', () => {
+        generateProfileFilters();
+        if (state.analysisEnabled) buildLimitsPanel();
+        buildTableHeader();
+        renderTableBody();
+        updateChart();
+        refreshToolbar();
+      });
+
+      /* ============ 事件绑定 ============ */
+      function bind() {
+        $('dropzone').addEventListener('click', () => $('file-input').click());
+        $('file-input').addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); e.target.value = ''; });
+        ['dragover', 'dragenter'].forEach(ev => $('dropzone').addEventListener(ev, e => { e.preventDefault(); $('dropzone').classList.add('dragover'); }));
+        ['dragleave', 'drop'].forEach(ev => $('dropzone').addEventListener(ev, e => { e.preventDefault(); $('dropzone').classList.remove('dragover'); }));
+        $('dropzone').addEventListener('drop', e => { if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+        document.addEventListener('dragover', e => e.preventDefault());
+        document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+
+        $('analysis-toggle').addEventListener('change', e => {
+          state.analysisEnabled = e.target.checked;
+          if (state.analysisEnabled) buildLimitsPanel();
+          else { $('limits-list').innerHTML = ''; }
+          initColumnFilters();
+          buildTableHeader();
+          renderTableBody();
+          updateChart();
+        });
+        $('col-filter-toggle').addEventListener('change', e => {
+          state.showColumnFilters = e.target.checked;
+          buildTableHeader();
+          renderTableBody();
+        });
+        $('name-filter').addEventListener('input', () => { updateActiveDatasets(); renderTableBody(); updateChart(); });
+
+        $('x-axis-mode').addEventListener('change', e => {
+          state.xMode = e.target.value;
+          const presets = { phase: [0, 360, 45], power: [27, 30, 0.5], blf: [0, 30, 5] };
+          const p = presets[state.xMode];
+          $('x-min').value = p[0]; $('x-max').value = p[1]; $('x-step').value = p[2];
+          updateChart();
+        });
+        ['x-min', 'x-max', 'x-step', 'y-min', 'y-max', 'y-step', 'line-width', 'marker-size'].forEach(id => {
+          $(id).addEventListener('input', () => { renderTableBody(); updateChart(); });
+        });
+        $('btn-reset-y').addEventListener('click', () => {
+          $('y-min').value = -90; $('y-max').value = -70; $('y-step').value = 2;
+          updateChart();
+        });
+        $('btn-export-png').addEventListener('click', () => {
+          if (window.Plotly) Plotly.downloadImage('sen-plot', { format: 'png', filename: 'sensitivity_analysis', scale: 2 });
+        });
+        $('btn-export-md').addEventListener('click', () => download(buildMDReport(), 'sensitivity_report_' + Date.now() + '.md', 'text/markdown'));
+        $('btn-export-csv').addEventListener('click', () => download(buildCSV(), 'sensitivity_data_' + Date.now() + '.csv', 'text/csv'));
+        $('btn-export-txt').addEventListener('click', () => {
+          const nameMap = {};
+          state.datasets.forEach(ds => nameMap[ds.id] = ds.name);
+          download(buildTxtExport(nameMap, new Set(state.datasets.map(d => d.id))), 'sensitivity_' + Date.now() + '.txt', 'text/plain');
+        });
+        $('btn-config').addEventListener('click', openDialog);
+        $('dlg-close').addEventListener('click', closeDialog);
+        $('dlg-close2').addEventListener('click', closeDialog);
+        $('overlay').addEventListener('click', e => { if (e.target === $('overlay')) closeDialog(); });
+        $('dlg-save').addEventListener('click', saveNames);
+        $('dlg-export-txt').addEventListener('click', () => {
+          const nameMap = {};
+          document.querySelectorAll('#names-list input[type="text"]').forEach(input => {
+            nameMap[parseInt(input.dataset.id)] = input.value.trim();
+          });
+          const ids = dlgExportIds.size ? dlgExportIds : new Set(state.datasets.map(d => d.id));
+          download(buildTxtExport(nameMap, ids), 'sensitivity_' + Date.now() + '.txt', 'text/plain');
+        });
+        $('dlg-select-all').addEventListener('change', e => {
+          document.querySelectorAll('#names-list .name-row input[type="checkbox"]').forEach(cb => {
+            if (cb.disabled) return;
+            cb.checked = e.target.checked;
+            const id = parseInt(cb.closest('.name-row').dataset.id);
+            if (e.target.checked) dlgExportIds.add(id); else dlgExportIds.delete(id);
+          });
+          updateCount();
+        });
+        window.addEventListener('resize', () => { if (plotReady && plotDiv.data) Plotly.Plots.resize(plotDiv); });
+      }
+
+      var plotDiv = null, plotReady = false;
+      function ensurePlot() {
+        if (!plotDiv) {
+          plotDiv = $('sen-plot');
+          Plotly.newPlot(plotDiv, [{ x: [], y: [], mode: 'lines' }], {
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: { t: 30, r: 190, b: 60, l: 60 }, font: { family: 'inherit' }
+          }, { responsive: true, displaylogo: false }).then(() => { plotReady = true; });
+        }
+      }
+
+      /* ============ 初始化 ============ */
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+      function init() {
+        ensurePlot();
+        bind();
+        initColumnFilters();
+        buildTableHeader();
+        refreshToolbar();
+      }
+
+      /* 供自动化测试 */
+      window.__SEN_TEST = {
+        parseData, parseProfileAndRate, buildTxtExport, buildMDReport, buildCSV,
+        loadText: (name, content) => { state.fileName = name; state.originalContent = content; parseData(content); afterDataLoaded(); },
+        datasets: () => state.datasets,
+        activeIndices: () => state.activeIndices,
+        setLimit: (key, v) => { state.limits[key] = v; renderTableBody(); updateChart(); },
+        setAnalysis: v => { state.analysisEnabled = v; $('analysis-toggle').checked = v; if (v) buildLimitsPanel(); initColumnFilters(); buildTableHeader(); renderTableBody(); updateChart(); }
+      };
+    })();
+  </script>
+</body>
+</html>
