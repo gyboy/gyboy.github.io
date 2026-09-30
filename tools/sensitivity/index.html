@@ -1,1180 +1,2880 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>灵敏度测试分析 · Gyboy 的小站</title>
-  <meta name="description" content="Xplore 灵敏度测试数据分析：解析 ##Reader_sensitivity_measurement_V3/V4 格式 TXT，多曲线对比图、调制/速率组合过滤、合格线 PASS/FAIL 判定、可排序统计表格与 TXT / MD 报告 / CSV 导出。">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📶</text></svg>">
-  <script src="/assets/js/plotly.min.js" charset="utf-8"></script>
-  <script>
-    /* 主题预设：在 CSS 加载前确定明暗，避免页面闪烁 */
-    (function () {
-      var t = localStorage.getItem('gyboy-theme');
-      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
-  <link rel="stylesheet" href="/assets/css/style.css">
-  <style>
-    /* ============ 灵敏度分析页专属样式 ============ */
-    .sen-main { max-width: none; padding: 24px 16px 40px; }
-    body.sen-wide .site-header .container,
-    body.sen-wide .site-footer .container { max-width: none; }
-    .sen-sub { color: var(--text-2); margin: 0 0 16px; font-size: 0.97rem; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xplore 灵敏度测试数据分析工具</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📶</text></svg>">
 
-    .sen-toolbar {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 14px; padding: 12px 18px; box-shadow: var(--shadow); margin-bottom: 16px;
-    }
-    .sen-toolbar .spacer { flex: 1; }
-    .sen-btn {
-      font-family: inherit; border: 1px solid var(--border); background: var(--surface);
-      color: var(--text); border-radius: 20px; padding: 8px 18px; font-size: 0.86rem; font-weight: 500;
-      cursor: pointer; white-space: nowrap;
-      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s, box-shadow 0.2s;
-    }
-    .sen-btn:hover { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
-    .sen-btn:active { transform: scale(0.97); }
-    .sen-btn.primary {
-      background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
-    }
-    .sen-btn.primary:hover { background: var(--accent); color: var(--accent-contrast); filter: brightness(1.1); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
-    .sen-btn.small { padding: 5px 14px; font-size: 0.78rem; }
-    .sen-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-    .sen-btn:disabled:hover { background: var(--surface); border-color: var(--border); color: var(--text); }
-    .sen-btn.primary:disabled:hover { background: var(--accent); color: var(--accent-contrast); }
-
-    .sen-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; }
-    .sen-grid > .panel { display: flex; flex-direction: column; overflow: hidden; min-height: 620px; }
-    .panel-head {
-      display: flex; align-items: center; gap: 8px; padding: 12px 16px;
-      border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95rem; flex-shrink: 0; flex-wrap: wrap;
-    }
-    .panel-head .spacer { flex: 1; }
-    .panel-body { padding: 12px 16px; overflow-y: auto; flex: 1; min-height: 0; }
-    .tool-sec { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-    .tool-sec:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .tool-sec h3 { font-size: 0.8rem; font-weight: 700; color: var(--text-2); margin: 0 0 8px; letter-spacing: 0.5px; }
-
-    .sen-drop {
-      border: 1.5px dashed var(--border); border-radius: 12px; padding: 14px; text-align: center;
-      cursor: pointer; font-size: 0.85rem; color: var(--text-2); background: var(--bg);
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .sen-drop:hover, .sen-drop.dragover { border-color: var(--accent); color: var(--accent); }
-    .sen-fname { font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-top: 8px; word-break: break-all; }
-
-    .chk-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
-    .chk-list label, .chk-row label {
-      display: flex; align-items: center; gap: 6px; font-size: 0.82rem;
-      color: var(--text); cursor: pointer; padding: 2px 0;
-    }
-    .chk-list .cnt { color: var(--text-2); font-size: 0.72rem; }
-    .chk-list input, .chk-row input { accent-color: var(--accent); }
-    .sen-input, .sen-input input[type="text"], .sen-input input[type="number"] {
-      width: 100%; padding: 7px 10px; font-size: 0.86rem; font-family: inherit;
-      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    .sen-input input:focus, .sen-input select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-    .sen-input select {
-      font-family: inherit; cursor: pointer;
-      appearance: none; -webkit-appearance: none;
-      padding-right: 32px;
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 10px center; background-size: 11px;
-    }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-    .grid-2 label { display: block; font-size: 0.72rem; color: var(--text-2); margin-bottom: 3px; }
-    .grid-2 input { width: 100%; padding: 6px 8px; font-size: 0.84rem; font-family: ui-monospace, Consolas, monospace;
-      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s; }
-    .grid-2 input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-
-    /* 开关（分析标准） */
-    .switch { position: relative; display: inline-block; width: 38px; height: 21px; flex-shrink: 0; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .switch .slider {
-      position: absolute; inset: 0; background: var(--border); border-radius: 20px;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .switch .slider::before {
-      content: ''; position: absolute; width: 15px; height: 15px; left: 3px; top: 3px;
-      background: var(--surface); border-radius: 50%; transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-    .switch input:checked + .slider { background: var(--accent); }
-    .switch input:checked + .slider::before { transform: translateX(17px); }
-    .limit-row input[type="checkbox"], .chk-list input, .chk-row input { width: 15px; height: 15px; }
-    .limit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; }
-    .limit-row label { flex: 1; font-family: ui-monospace, Consolas, monospace; }
-    .limit-row input[type="number"] { width: 76px; padding: 5px 7px; font-size: 0.8rem;
-      font-family: ui-monospace, Consolas, monospace; color: var(--text); background: var(--bg);
-      border: 1px solid var(--border); border-radius: 7px; outline: none; }
-    .limit-row input[type="number"]:focus { border-color: var(--accent); }
-    .limit-row input[type="checkbox"] { accent-color: var(--accent); }
-
-    #sen-plot { width: 100%; min-height: 430px; }
-
-    /* Plotly 模式栏：深浅主题下图标均清晰可见（修复悬停变黑不可见） */
-    #sen-plot .modebar {
-      background: rgba(127, 127, 127, 0.09) !important;
-      border-radius: 8px;
-      transition: background 0.15s;
-    }
-    #sen-plot .modebar:hover { background: rgba(127, 127, 127, 0.16) !important; }
-    #sen-plot .modebar-btn path { fill: var(--text-2) !important; transition: fill 0.15s; }
-    #sen-plot .modebar-btn:hover path,
-    #sen-plot .modebar-btn.active path { fill: var(--accent) !important; }
-
-    .tbl-wrap { overflow: auto; flex: 1; min-height: 0; }
-    .sen-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .sen-table th, .sen-table td {
-      padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: right;
-    }
-    .sen-table th {
-      position: sticky; top: 0; z-index: 2; background: var(--bg);
-      font-weight: 600; color: var(--text-2); font-size: 0.75rem; cursor: pointer; user-select: none;
-    }
-    .sen-table th[data-col="name"], .sen-table th[data-col="status"] { text-align: left; }
-    .sen-table th::after { content: ''; display: inline-block; width: 0.95em; }
-    .sen-table th.sort-asc::after { content: '▲'; color: var(--accent); }
-    .sen-table th.sort-desc::after { content: '▼'; color: var(--accent); }
-    .sen-table th .filter-row { display: none; flex-direction: row; gap: 4px; margin-top: 5px; cursor: default; }
-    .sen-table th.filter-open .filter-row { display: flex; }
-    .sen-table th .filter-row input {
-      width: 100%; min-width: 0; padding: 3px 6px; font-size: 0.72rem; font-family: inherit;
-      color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; outline: none;
-    }
-    .sen-table th .filter-row input:focus { border-color: var(--accent); }
-    .sen-table th .filter-row .range-min, .sen-table th .filter-row .range-max { width: 46%; }
-    .sen-table td { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
-    .sen-table td.name-cell { text-align: left; font-family: inherit; font-weight: 600; }
-    .sen-table tr.active-row { background: var(--accent-weak); }
-    .sen-table tr:hover { background: var(--bg); }
-    .sen-table td.pass { color: var(--success, #059669); font-weight: 700; }
-    .sen-table td.fail { color: var(--danger); font-weight: 700; }
-    .empty-msg { text-align: center; padding: 24px; color: var(--text-2); font-size: 0.85rem; }
-
-    /* 配置对话框 */
-    .sen-overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 60;
-      display: none; align-items: center; justify-content: center; padding: 20px;
-    }
-    .sen-overlay.show { display: flex; }
-    .sen-dialog {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-      box-shadow: var(--shadow-hover, 0 12px 28px rgba(0,0,0,0.25));
-      width: 560px; max-width: 100%; max-height: 86vh; display: flex; flex-direction: column;
-    }
-    .sen-dialog .dlg-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700;
-    }
-    .sen-dialog .dlg-head button { border: none; background: transparent; color: var(--text-2); font-size: 1.1rem; cursor: pointer; }
-    .sen-dialog .dlg-body { padding: 12px 20px; overflow-y: auto; flex: 1; }
-    .name-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
-    .name-row input[type="checkbox"] { accent-color: var(--accent); }
-    .name-row .row-id { font-size: 0.72rem; color: var(--text-2); width: 44px; flex-shrink: 0; font-family: ui-monospace, Consolas, monospace; }
-    .name-row input[type="text"] {
-      flex: 1; min-width: 0; padding: 6px 10px; font-size: 0.86rem; color: var(--text);
-      background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none; font-family: inherit;
-    }
-    .name-row input[type="text"]:focus { border-color: var(--accent); }
-    .name-row .row-act {
-      width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 7px;
-      background: var(--bg); color: var(--text-2); cursor: pointer; font-size: 0.8rem; flex-shrink: 0;
-    }
-    .name-row .row-act:hover { border-color: var(--danger); color: var(--danger); }
-    .name-row.deleted input[type="text"] { text-decoration: line-through; opacity: 0.55; }
-    .name-row.deleted .row-act { border-color: var(--accent); color: var(--accent); }
-    .sen-dialog .dlg-foot {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      padding: 14px 20px; border-top: 1px solid var(--border); font-size: 0.82rem; color: var(--text-2);
-    }
-    .sen-dialog .dlg-foot .spacer { flex: 1; }
-    .dlg-foot label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-
-    .pill { font-size: 0.74rem; font-weight: 600; padding: 3px 10px; border-radius: 99px; background: var(--accent-weak); color: var(--accent); white-space: nowrap; }
-    .pill.gray { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
-
-    @media (max-width: 900px) {
-      .sen-grid { grid-template-columns: minmax(0, 1fr); }
-      .sen-grid > .panel { min-height: auto; }
-      #sen-plot { min-height: 360px; }
-    }
-  </style>
-</head>
-<body class="sen-wide" data-i18n-doc="sen.doc">
-  <header class="site-header">
-    <div class="container header-inner">
-      <a class="back-link" href="/" data-i18n="nav.back">← 返回首页</a>
-      <div class="header-actions">
-        <button id="theme-toggle" class="icon-btn" data-i18n-title="nav.theme" aria-label="切换明暗主题" title="切换明暗主题">🌙</button>
-        <button id="lang-toggle" class="icon-btn lang-btn" aria-label="切换到英文" title="切换到英文">EN</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="sen-main">
-    <h1 class="page-title" data-i18n="sen.h1">灵敏度测试分析</h1>
-    <p class="sen-sub" data-i18n="sen.subtitle"></p>
-
-    <!-- 工具栏 -->
-    <div class="sen-toolbar">
-      <span class="pill" id="pill-curves">0</span>
-      <span class="pill gray" id="pill-visible">0</span>
-      <span class="pill gray" id="pill-format">—</span>
-      <span class="spacer"></span>
-      <button id="btn-config" class="sen-btn primary" data-i18n="sen.config" disabled>⚙ 数据配置</button>
-      <button id="btn-export-txt" class="sen-btn" data-i18n="sen.exportTxt" disabled>📤 导出 TXT</button>
-      <button id="btn-export-md" class="sen-btn" data-i18n="sen.exportMd" disabled>📝 导出 MD 报告</button>
-      <button id="btn-export-csv" class="sen-btn" data-i18n="sen.exportCsv" disabled>📄 导出 CSV</button>
-      <button id="btn-export-png" class="sen-btn" data-i18n="sen.exportPng" disabled>📊 导出图表</button>
-    </div>
-
-    <div class="sen-grid">
-      <!-- ============ 左侧控制面板 ============ -->
-      <section class="panel">
-        <div class="panel-head"><span data-i18n="sen.import">数据导入</span></div>
-        <div class="panel-body">
-          <div class="tool-sec">
-            <div class="sen-drop" id="dropzone" data-i18n="sen.dropzone">📂 点击或拖拽上传 TXT</div>
-            <input type="file" id="file-input" accept=".txt,.log" style="display:none;">
-            <div class="sen-fname" id="file-name"></div>
-          </div>
-
-          <div class="tool-sec">
-            <h3 data-i18n="sen.filters">数据过滤</h3>
-            <div class="sen-input" style="margin-bottom: 8px;">
-              <input type="text" id="name-filter" data-i18n-placeholder="sen.namePh" placeholder="输入关键字过滤曲线…">
-            </div>
-            <div class="chk-list" id="filter-values"></div>
-            <div class="chk-row" style="margin-top: 8px;">
-              <label><input type="checkbox" id="col-filter-toggle"> <span data-i18n="sen.colFilter">显示列筛选</span></label>
-            </div>
-          </div>
-
-          <div class="tool-sec">
-            <div class="panel-head" style="border:none; padding: 0 0 6px; justify-content: space-between;">
-              <h3 style="margin:0;" data-i18n="sen.analysis">分析标准</h3>
-              <span style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:0.8rem;color:var(--text-2);">
-                <span class="switch"><input type="checkbox" id="analysis-toggle"><span class="slider"></span></span>
-                <span data-i18n="sen.col.status">测试结果</span>
-              </span>
-            </div>
-            <div id="limits-list"></div>
-          </div>
-
-          <div class="tool-sec">
-            <h3 data-i18n="sen.display">坐标轴与样式</h3>
-            <div class="sen-input" style="margin-bottom: 8px;">
-              <select id="x-axis-mode">
-                <option value="phase" selected data-i18n="sen.modePhase">相位</option>
-                <option value="power" data-i18n="sen.modePower">功率</option>
-                <option value="blf" data-i18n="sen.modeBlf">BLF</option>
-                <option value="rl" data-i18n="sen.modeRl">回波损耗</option>
-              </select>
-            </div>
-            <div class="grid-2">
-              <div><label for="x-min">X Min</label><input id="x-min" type="number" value="0" step="any"></div>
-              <div><label for="x-max">X Max</label><input id="x-max" type="number" value="360" step="any"></div>
-            </div>
-            <div class="grid-2">
-              <div><label for="x-step">X Tick</label><input id="x-step" type="number" value="45" step="any"></div>
-              <div><label for="y-step">Y Tick</label><input id="y-step" type="number" value="1" step="any"></div>
-            </div>
-            <div class="grid-2">
-              <div><label for="y-min">Y Min</label><input id="y-min" type="number" value="-90" step="any"></div>
-              <div><label for="y-max">Y Max</label><input id="y-max" type="number" value="-70" step="any"></div>
-            </div>
-            <div class="grid-2">
-              <div><label for="line-width" data-i18n="sen.lineWidth">线宽</label><input id="line-width" type="number" value="1.5" step="0.5" min="0.5"></div>
-              <div><label for="marker-size" data-i18n="sen.marker">点大小</label><input id="marker-size" type="number" value="4" step="1" min="1"></div>
-            </div>
-            <button id="btn-reset-y" class="sen-btn small" data-i18n="sen.resetY" style="width:100%;">自适应 Y 轴</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 右侧：图表 + 表格 ============ -->
-      <div class="col-stack" style="display:grid; gap:16px; align-content:start; min-width:0;">
-        <section class="panel">
-          <div class="panel-head">
-            <span data-i18n="sen.chart">灵敏度曲线图</span>
-            <span class="spacer"></span>
-            <span style="font-size:0.72rem; color:var(--text-2);" data-i18n="sen.dblHint">双击行高亮对应曲线</span>
-          </div>
-          <div class="panel-body" style="padding:0;">
-            <div id="sen-plot"></div>
-          </div>
-        </section>
-
-        <section class="panel" style="display:flex; flex-direction:column;">
-          <div class="panel-head"><span data-i18n="sen.table">统计表格</span></div>
-          <div class="tbl-wrap">
-            <table class="sen-table" id="stats-table">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
-            <div class="empty-msg" id="table-empty" data-i18n="sen.msg.noData">请先导入数据</div>
-          </div>
-        </section>
-      </div>
-    </div>
-  </main>
-
-  <!-- 数据配置对话框 -->
-  <div class="sen-overlay" id="overlay">
-    <div class="sen-dialog" id="config-dialog">
-      <div class="dlg-head">
-        <span data-i18n="sen.dlgTitle">数据配置与导出</span>
-        <button id="dlg-close" title="✕">✕</button>
-      </div>
-      <div class="dlg-body">
-        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;margin-bottom:8px;">
-          <input type="checkbox" id="dlg-select-all" checked> <span data-i18n="sen.selectAll">全选</span>
-        </label>
-        <div id="names-list"></div>
-      </div>
-      <div class="dlg-foot">
-        <span id="dlg-count"></span>
-        <span class="spacer"></span>
-        <button id="dlg-export-txt" class="sen-btn small" data-i18n="sen.exportTxt">📤 导出 TXT</button>
-        <button id="dlg-save" class="sen-btn small primary" data-i18n="sen.save">保存并应用</button>
-        <button id="dlg-close2" class="sen-btn small" data-i18n="sen.close">关闭</button>
-      </div>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <div class="container">
-      © <span id="year">2026</span> Gyboy · <a href="/" data-i18n="footer.back">返回目录</a>
-    </div>
-  </footer>
-
-  <script src="/assets/js/i18n.js"></script>
-  <script src="/assets/js/common.js"></script>
-  <script>
-    /* ============================================================
-     * 灵敏度测试分析（Xplore 单文件分析工具的站点化版本）
-     *  - 解析 ##Reader_sensitivity_measurement_V3/V4 数据块 + ##name_of_data_set 命名
-     *  - 多曲线对比图（相位/功率/BLF X 轴）、组合过滤、合格线 PASS/FAIL
-     *  - 可排序统计表格（列筛选、双击行高亮）、配置对话框（重命名/删除）
-     *  - 导出：TXT（仪器格式回写）/ MD 报告 / CSV 原始数据 / 图表 PNG
-     * ============================================================ */
-    (function () {
-      'use strict';
-      const $ = id => document.getElementById(id);
-      const T = k => I18N.t(k);
-      const MONO = 'ui-monospace, "Cascadia Mono", Consolas, monospace';
-      const COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0ea5e9', '#db2777', '#0d9488', '#ea580c', '#4f46e5'];
-      const PROFILES = ['M4', 'M8', 'FM0', 'M2'];
-
-      const state = {
-        datasets: [], activeIndices: [], highlightId: null,
-        xMode: 'phase', sort: { key: 'name', order: 'asc' },
-        limits: {}, analysisEnabled: false,
-        columnFilters: {}, showColumnFilters: false,
-        dataFormat: 'V3', originalContent: '', fileName: ''
-      };
-
-      const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
-      const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-      /* 页面动态文案（跟随语言） */
-      const L = {
-        colLabel: { zh: { name: '数据集名称', power: '发射功率', rl: '回波损耗', min: '最小灵敏度', max: '最大灵敏度', avg: '平均灵敏度', range: '灵敏度范围', status: '测试结果' },
-                    en: { name: 'Dataset name', power: 'Tx power', rl: 'Return loss', min: 'Min sens', max: 'Max sens', avg: 'Avg sens', range: 'Sens range', status: 'Status' } },
-        report: {
-          title: { zh: 'Xplore 灵敏度测试数据分析报告', en: 'Xplore Sensitivity Test Analysis Report' },
-          time: { zh: '生成时间', en: 'Generated at' },
-          file: { zh: '数据文件', en: 'Data file' },
-          overview: { zh: '数据概况', en: 'Overview' },
-          total: { zh: '总曲线数', en: 'Total traces' },
-          shown: { zh: '当前显示曲线数', en: 'Shown traces' },
-          limitsSec: { zh: '灵敏度合格线 (dBm) 设置', en: 'Sensitivity limits (dBm)' },
-          combo: { zh: '组合', en: 'Combo' },
-          limitCol: { zh: '合格线 (dBm)', en: 'Limit (dBm)' },
-          noneSet: { zh: '当前未设置任何灵敏度合格线。', en: 'No limits configured.' },
-          summarySec: { zh: '统计摘要', en: 'PASS/FAIL summary' },
-          totalCol: { zh: '总数', en: 'Total' },
-          passCol: { zh: 'PASS', en: 'PASS' },
-          failCol: { zh: 'FAIL', en: 'FAIL' },
-          rateCol: { zh: '合格率', en: 'Pass rate' },
-          overall: { zh: '总体合格率', en: 'Overall pass rate' },
-          totalTests: { zh: '总测试数', en: 'Total tests' },
-          detail: { zh: '详细数据', en: 'Detailed data' },
-          result: { zh: '结果', en: 'Result' }
-        }
-      };
-      const tt = o => { const v = o[I18N.lang()]; return v != null ? v : o.zh; };
-
-      /* ============ 数据解析（与源工具逐行等价） ============ */
-      function parseData(content) {
-        const hasV4 = /##Reader_sensitivity_measurement_V4 begin/.test(content);
-        const hasV3 = /##Reader_sensitivity_measurement_V3 begin/.test(content);
-        state.dataFormat = hasV4 ? 'V4' : (hasV3 ? 'V3' : 'V3');
-        const versionTag = state.dataFormat;
-        const beginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
-        const endMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
-
-        const blocks = content.split(beginMarker);
-        const names = content.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
-        state.datasets = blocks.slice(1).map((block, i) => {
-          const endIdx = block.indexOf(endMarker);
-          const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.split('##')[0].trim();
-          const lines = blockBody.split(/\r?\n/);
-          const data = lines.slice(1).map(l => {
-            const p = l.trim().split(/\s+/);
-            if (p.length < 6) return null;
-            const point = { power: parseFloat(p[0]), sens: parseFloat(p[1]), blf: parseFloat(p[2]), phase: parseFloat(p[3]), rl: parseFloat(p[4]), time: parseFloat(p[5]) };
-            if (p.length >= 7) point.returnPhase = parseFloat(p[6]);
-            return point;
-          }).filter(d => d !== null && !isNaN(d.sens));
-          if (data.length === 0) return null;
-
-          const sens = data.map(d => d.sens);
-          const powers = data.map(d => d.power).filter(p => !isNaN(p));
-          const nameMatch = (names[i] || 'CH_' + i).replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '');
-          return {
-            id: i, name: nameMatch, originalName: nameMatch, data: data, blockContent: blockBody,
-            stats: {
-              min: sens.length ? Math.min(...sens) : NaN,
-              max: sens.length ? Math.max(...sens) : NaN,
-              avg: sens.length ? sens.reduce((a, b) => a + b, 0) / sens.length : NaN,
-              range: sens.length ? Math.max(...sens) - Math.min(...sens) : NaN,
-              powerAvg: powers.length ? powers.reduce((a, b) => a + b, 0) / powers.length : NaN,
-              returnLoss: (data.find(d => !isNaN(d.rl)) || {}).rl || 19.54
-            }
-          };
-        }).filter(ds => ds !== null);
-      }
-
-      function parseProfileAndRate(name) {
-        let profile = '', rate = '';
-        for (const p of PROFILES) if (name.toUpperCase().includes(p)) { profile = p; break; }
-        const m = name.match(/(\d+)K/i);
-        if (m) rate = m[1] + 'K';
-        if (!rate) {
-          const rl = name.match(/RL(\d+)/i);
-          if (rl) rate = 'RL' + rl[1];
-        }
-        return { profile, rate };
-      }
-
-      const columns = () => {
-        const c = [
-          { key: 'name', type: 'text' }, { key: 'powerAvg', type: 'number' }, { key: 'returnLoss', type: 'number' },
-          { key: 'min', type: 'number' }, { key: 'max', type: 'number' }, { key: 'avg', type: 'number' }, { key: 'range', type: 'number' }
-        ];
-        if (state.analysisEnabled) c.push({ key: 'status', type: 'text' });
-        return c;
-      };
-      const colText = key => {
-        const map = { powerAvg: 'power', returnLoss: 'rl' };
-        return tt(L.colLabel)[map[key] || key] || key;
-      };
-
-      function initColumnFilters() {
-        columns().forEach(col => {
-          if (!state.columnFilters[col.key]) {
-            state.columnFilters[col.key] = col.type === 'text' ? { text: '' } : { min: null, max: null };
-          } else if (col.type === 'text' && state.columnFilters[col.key].text === undefined) {
-            state.columnFilters[col.key].text = '';
-          } else if (col.type === 'number') {
-            if (state.columnFilters[col.key].min === undefined) state.columnFilters[col.key].min = null;
-            if (state.columnFilters[col.key].max === undefined) state.columnFilters[col.key].max = null;
-          }
-        });
-      }
-
-      function getLimitForDataset(ds) {
-        const { profile, rate } = parseProfileAndRate(ds.name);
-        const key = profile + '-' + rate;
-        return state.limits[key] !== undefined ? state.limits[key] : -80;
-      }
-
-      /* ============ 导入 ============ */
-      function handleFile(file) {
-        if (!file) return;
-        state.fileName = file.name;
-        $('file-name').textContent = file.name;
-        const reader = new FileReader();
-        reader.onload = e => {
-          state.originalContent = e.target.result;
-          try {
-            parseData(state.originalContent);
-          } catch (err) {
-            alert(T('sen.msg.parseFail') + err.message);
-            return;
-          }
-          if (state.datasets.length === 0) { alert(T('sen.msg.noValid')); return; }
-          afterDataLoaded();
+    <!-- 嵌入式数据配置 - 在此填入Base64编码的数据以启用嵌入功能 -->
+    <script id="embeddedDataConfig">
+        const EMBEDDED_DATA_CONFIG = {
+            enabled: true,           // 嵌入数据功能总开关（需配合页面开关使用）
+            disableFileUpload: true, // 加载嵌入数据后是否禁用文件上传
+            base64Data: "",          // Base64编码的TXT数据，留空则视为无嵌入数据
+            description: "嵌入测试数据",         // 嵌入数据描述文字
+            loadMessage: "已自动加载嵌入式测试数据，您仍可上传新文件覆盖当前数据。"
         };
-        reader.onerror = () => alert(T('sen.msg.readFail'));
-        reader.readAsText(file, 'UTF-8');
-      }
-      function afterDataLoaded() {
-        state.activeIndices = state.datasets.map(d => d.id);
-        state.highlightId = null;
-        if (state.analysisEnabled) buildLimitsPanel();
-        generateProfileFilters();
-        state.columnFilters = {};
-        state.showColumnFilters = false;
-        $('col-filter-toggle').checked = false;
-        initColumnFilters();
-        buildTableHeader();
-        renderTableBody();
-        updateChart();
-        refreshToolbar();
-      }
-      function refreshToolbar() {
-        const has = state.datasets.length > 0;
-        ['btn-config', 'btn-export-txt', 'btn-export-md', 'btn-export-csv', 'btn-export-png'].forEach(id => $(id).disabled = !has);
-        $('table-empty').style.display = has ? 'none' : '';
-        $('pill-curves').textContent = state.datasets.length + T('sen.curves');
-        $('pill-visible').textContent = state.activeIndices.length + T('sen.visible');
-        $('pill-format').textContent = T('sen.fmt') + ': ' + state.dataFormat;
-      }
 
-      /* ============ 过滤 ============ */
-      function generateProfileFilters() {
-        const box = $('filter-values');
-        box.innerHTML = '';
-        const combos = {};
-        state.datasets.forEach(ds => {
-          const { profile, rate } = parseProfileAndRate(ds.name);
-          const key = profile + '-' + rate;
-          (combos[key] = combos[key] || []).push(ds.id);
-        });
-        Object.keys(combos).sort().forEach(key => {
-          const label = document.createElement('label');
-          label.innerHTML = '<input type="checkbox" checked value="' + esc(key) + '"> ' + esc(key) +
-            ' <span class="cnt">(' + combos[key].length + ')</span>';
-          label.querySelector('input').onchange = () => { updateActiveDatasets(); renderTableBody(); updateChart(); };
-          box.appendChild(label);
-        });
-      }
-      function updateActiveDatasets() {
-        const checked = Array.from(document.querySelectorAll('#filter-values input:checked')).map(i => i.value);
-        state.activeIndices = [];
-        checked.forEach(key => {
-          const parts = key.split('-');
-          state.datasets.forEach(ds => {
-            const info = parseProfileAndRate(ds.name);
-            if (info.profile === parts[0] && info.rate === parts[1]) state.activeIndices.push(ds.id);
-          });
-        });
-        applyNameFilter();
-        refreshToolbar();
-      }
-      function applyNameFilter() {
-        const kw = $('name-filter').value.trim().toLowerCase();
-        if (!kw) return;
-        state.activeIndices = state.activeIndices.filter(id => state.datasets.find(d => d.id === id).name.toLowerCase().includes(kw));
-      }
-
-      /* ============ 合格线面板 ============ */
-      function buildLimitsPanel() {
-        const box = $('limits-list');
-        box.innerHTML = '';
-        const combos = new Set();
-        state.datasets.forEach(ds => {
-          const { profile, rate } = parseProfileAndRate(ds.name);
-          if (profile && rate) combos.add(profile + '-' + rate);
-        });
-        combos.forEach(key => {
-          const row = document.createElement('div');
-          row.className = 'limit-row';
-          row.innerHTML = '<label for="limit-' + esc(key) + '">' + esc(key) + '</label>' +
-            '<input type="number" id="limit-' + esc(key) + '" value="' + (state.limits[key] !== undefined ? state.limits[key] : -80) + '" step="0.5">' +
-            '<input type="checkbox" id="show-' + esc(key) + '" checked title="' + esc(T('legend.comp')) + '">';
-          box.appendChild(row);
-          row.querySelector('#limit-' + CSS.escape(key)).onchange = () => {
-            state.limits[key] = parseFloat(row.querySelector('#limit-' + CSS.escape(key)).value);
-            renderTableBody(); updateChart();
-          };
-          row.querySelector('#show-' + CSS.escape(key)).onchange = updateChart;
-        });
-      }
-
-      /* ============ 表格 ============ */
-      function buildTableHeader() {
-        const thead = document.querySelector('#stats-table thead');
-        thead.innerHTML = '';
-        const tr = document.createElement('tr');
-        columns().forEach(col => {
-          const th = document.createElement('th');
-          th.setAttribute('data-col', col.key);
-          if (state.showColumnFilters) th.classList.add('filter-open');
-          const title = document.createElement('span');
-          title.textContent = colText(col.key);
-          title.addEventListener('click', e => {
-            e.stopPropagation();
-            if (state.sort.key === col.key) state.sort.order = state.sort.order === 'asc' ? 'desc' : 'asc';
-            else { state.sort.key = col.key; state.sort.order = 'asc'; }
-            document.querySelectorAll('#stats-table th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
-            th.classList.add('sort-' + state.sort.order);
-            renderTableBody();
-          });
-          const fr = document.createElement('div');
-          fr.className = 'filter-row';
-          if (col.type === 'text') {
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.placeholder = T('sen.filterPh');
-            input.value = (state.columnFilters[col.key] || {}).text || '';
-            input.addEventListener('input', e => { state.columnFilters[col.key].text = e.target.value; renderTableBody(); });
-            fr.appendChild(input);
-          } else {
-            const minI = document.createElement('input');
-            minI.type = 'number'; minI.placeholder = T('sen.minPh'); minI.className = 'range-min';
-            minI.value = state.columnFilters[col.key] && state.columnFilters[col.key].min !== null ? state.columnFilters[col.key].min : '';
-            minI.addEventListener('input', e => { state.columnFilters[col.key].min = e.target.value === '' ? null : parseFloat(e.target.value); renderTableBody(); });
-            const maxI = document.createElement('input');
-            maxI.type = 'number'; maxI.placeholder = T('sen.maxPh'); maxI.className = 'range-max';
-            maxI.value = state.columnFilters[col.key] && state.columnFilters[col.key].max !== null ? state.columnFilters[col.key].max : '';
-            maxI.addEventListener('input', e => { state.columnFilters[col.key].max = e.target.value === '' ? null : parseFloat(e.target.value); renderTableBody(); });
-            fr.appendChild(minI); fr.appendChild(maxI);
-          }
-          th.appendChild(title);
-          th.appendChild(fr);
-          tr.appendChild(th);
-        });
-        thead.appendChild(tr);
-        const sorted = document.querySelector('#stats-table th[data-col="' + state.sort.key + '"]');
-        if (sorted) sorted.classList.add('sort-' + state.sort.order);
-      }
-
-      function filteredSortedData() {
-        let list = state.datasets.filter(d => state.activeIndices.includes(d.id));
-        if (state.showColumnFilters) {
-          list = list.filter(ds => {
-            for (const col of columns()) {
-              const f = state.columnFilters[col.key];
-              if (!f) continue;
-              if (col.type === 'text') {
-                const ft = f.text || '';
-                if (ft === '') continue;
-                let cell = '';
-                if (col.key === 'name') cell = ds.name;
-                else if (col.key === 'status' && state.analysisEnabled) cell = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
-                else continue;
-                if (!cell.toLowerCase().includes(ft.toLowerCase())) return false;
-              } else {
-                let v = null;
-                if (col.key === 'powerAvg') v = ds.stats.powerAvg;
-                else if (col.key === 'returnLoss') v = ds.stats.returnLoss;
-                else if (col.key === 'min') v = ds.stats.min;
-                else if (col.key === 'max') v = ds.stats.max;
-                else if (col.key === 'avg') v = ds.stats.avg;
-                else if (col.key === 'range') v = ds.stats.range;
-                if (v === null) continue;
-                if (f.min !== null && v < f.min) return false;
-                if (f.max !== null && v > f.max) return false;
-              }
+        function decodeBase64Data(base64String) {
+            try {
+                if (!base64String || base64String.trim() === '') return null;
+                const cleanBase64 = base64String.replace(/\s/g, '');
+                const binaryString = atob(cleanBase64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const decoder = new TextDecoder('utf-8');
+                return decoder.decode(bytes);
+            } catch (error) {
+                console.error("Base64解码错误:", error);
+                return null;
             }
-            return true;
-          });
         }
-        list.sort((a, b) => {
-          let va, vb;
-          const key = state.sort.key;
-          if (key === 'name') { va = a.name; vb = b.name; }
-          else if (key === 'status' && state.analysisEnabled) { va = a.stats.max <= getLimitForDataset(a) ? 0 : 1; vb = b.stats.max <= getLimitForDataset(b) ? 0 : 1; }
-          else {
-            va = a.stats[key]; vb = b.stats[key];
-          }
-          const res = typeof va === 'string' ? va.localeCompare(vb) : ((va > vb) - (va < vb));
-          return state.sort.order === 'asc' ? res : -res;
-        });
-        return list;
-      }
 
-      function renderTableBody() {
-        const tbody = document.querySelector('#stats-table tbody');
-        tbody.innerHTML = '';
-        const list = filteredSortedData();
-        list.forEach(ds => {
-          const tr = document.createElement('tr');
-          if (state.highlightId === ds.id) tr.classList.add('active-row');
-          columns().forEach(col => {
-            const td = document.createElement('td');
-            if (col.key === 'name') { td.className = 'name-cell'; td.textContent = ds.name; }
-            else if (col.key === 'status' && state.analysisEnabled) {
-              const status = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
-              td.textContent = status;
-              td.className = status === 'PASS' ? 'pass' : 'fail';
-            } else if (col.key === 'powerAvg') td.textContent = ds.stats.powerAvg.toFixed(2);
-            else if (col.key === 'returnLoss') td.textContent = ds.stats.returnLoss.toFixed(2);
-            else if (col.key === 'min') td.textContent = ds.stats.min.toFixed(2);
-            else if (col.key === 'max') td.textContent = ds.stats.max.toFixed(2);
-            else if (col.key === 'avg') td.textContent = ds.stats.avg.toFixed(2);
-            else if (col.key === 'range') td.textContent = ds.stats.range.toFixed(2);
-            tr.appendChild(td);
-          });
-          tr.ondblclick = () => {
-            state.highlightId = state.highlightId === ds.id ? null : ds.id;
-            renderTableBody(); updateChart();
-          };
-          tbody.appendChild(tr);
-        });
-      }
+        function _computeConfigFingerprint(config) {
+            const keys = ['enabled', 'disableFileUpload', 'base64Data', 'description', 'loadMessage'];
+            const obj = {};
+            keys.forEach(k => { if (config[k] !== undefined) obj[k] = config[k]; });
+            return JSON.stringify(obj);
+        }
 
-      /* ============ 图表 ============ */
-      function themeColors() {
-        const cs = getComputedStyle(document.documentElement);
-        return {
-          paper: cs.getPropertyValue('--surface').trim() || '#fff',
-          grid: isDark() ? '#2d3a4e' : '#eef2f6',
-          text: cs.getPropertyValue('--text').trim() || '#1c1e21',
-          muted: isDark() ? '#4a4a6a' : '#cccccc'
-        };
-      }
-      function updateChart() {
-        if (!window.Plotly) return;
-        const tc = themeColors();
-        const lw = parseFloat($('line-width').value) || 1.5;
-        const ms = parseFloat($('marker-size').value) || 4;
-        const traces = state.datasets.filter(d => state.activeIndices.includes(d.id)).map(ds => {
-          const isH = state.highlightId === null || state.highlightId === ds.id;
-          return {
-            x: ds.data.map(d => d[state.xMode]),
-            y: ds.data.map(d => d.sens),
-            name: ds.name, mode: 'lines+markers', type: 'scatter',
-            line: { width: isH ? lw : 1, color: isH ? COLORS[ds.id % COLORS.length] : tc.muted },
-            marker: { size: ms },
-            opacity: isH ? 1 : 0.25,
-            hovertemplate: '<b>' + esc(ds.name) + '</b><br>' + state.xMode.toUpperCase() + ': %{x}<br>Sens: %{y:.2f} dBm<extra></extra>'
-          };
-        });
-        if (state.analysisEnabled) {
-          const combos = new Set();
-          state.datasets.filter(d => state.activeIndices.includes(d.id)).forEach(ds => {
-            const { profile, rate } = parseProfileAndRate(ds.name);
-            if (profile && rate) combos.add(profile + '-' + rate);
-          });
-          const x0 = parseFloat($('x-min').value), x1 = parseFloat($('x-max').value);
-          combos.forEach(key => {
-            const show = $('show-' + CSS.escape(key)) && $('show-' + CSS.escape(key)).checked;
-            const limit = parseFloat(($('limit-' + CSS.escape(key)) || {}).value);
-            if (show && !isNaN(limit) && isFinite(x0) && isFinite(x1)) {
-              traces.push({
-                x: [x0, x1], y: [limit, limit], mode: 'lines',
-                name: key + ' Limit', line: { color: '#dc2626', dash: 'dash', width: 1.5 },
-                hovertemplate: key + ' Limit: ' + limit + ' dBm<extra></extra>'
-              });
+        async function computeConfigHash(config) {
+            const json = _computeConfigFingerprint(config);
+            const data = new TextEncoder().encode(json);
+            const buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function verifyConfigSeal() {
+            if (EMBEDDED_DATA_CONFIG._seal !== true) return false;
+            const currentHash = await computeConfigHash(EMBEDDED_DATA_CONFIG);
+            return currentHash === EMBEDDED_DATA_CONFIG._sealHash;
+        }
+    </script>
+
+    <!-- Plotly资源加载器 - 优先CDN，回退本地文件，含进度条与日志 -->
+    <style>
+        /* 加载进度条样式 - 内联确保无样式闪烁 */
+        @keyframes cdnPulse {
+
+            0%,
+            100% {
+                opacity: 1;
             }
-          });
-        }
-        const layout = {
-          autosize: true,
-          paper_bgcolor: tc.paper, plot_bgcolor: tc.paper,
-          margin: { t: 30, r: 190, b: 60, l: 60 },
-          font: { color: tc.text, family: 'inherit' },
-          xaxis: {
-            title: { text: state.xMode.toUpperCase() },
-            gridcolor: tc.grid, zerolinecolor: tc.grid,
-            type: state.xMode === 'phase' ? 'linear' : 'linear'
-          },
-          yaxis: { title: { text: 'Sensitivity (dBm)' }, gridcolor: tc.grid, zerolinecolor: tc.grid },
-          showlegend: true,
-          legend: { x: 1.02, y: 1, xanchor: 'left', font: { size: 10, color: tc.text }, bgcolor: 'rgba(0,0,0,0)', bordercolor: tc.grid, borderwidth: 1 },
-          hovermode: 'closest',
-          dragmode: 'pan'
-        };
-        /* 手动模式：输入框的 Min/Max 驱动范围；自动模式（缩放后）：保留缩放范围并按缩放级别细化刻度 */
-        if (manualTick.x) {
-          const xr = numRange($('x-min').value, $('x-max').value);
-          if (xr) { layout.xaxis.range = xr; lastRange.x = xr; }
-          const xs = parseFloat($('x-step').value);
-          if (xs > 0) layout.xaxis.dtick = xs;
-        } else if (lastRange.x) {
-          layout.xaxis.range = lastRange.x;
-          const st = niceStep(lastRange.x[1] - lastRange.x[0]);
-          if (st) layout.xaxis.dtick = st;
-        }
-        if (manualTick.y) {
-          const yr = numRange($('y-min').value, $('y-max').value);
-          if (yr) { layout.yaxis.range = yr; lastRange.y = yr; }
-          const ys = parseFloat($('y-step').value);
-          if (ys > 0) layout.yaxis.dtick = ys;
-        } else if (lastRange.y) {
-          layout.yaxis.range = lastRange.y;
-          const st = niceStep(lastRange.y[1] - lastRange.y[0]);
-          if (st) layout.yaxis.dtick = st;
-        }
-        Plotly.react('sen-plot', traces.length ? traces : [{ x: [], y: [], mode: 'lines' }], layout, {
-          responsive: true, displaylogo: false,
-          modeBarButtonsToRemove: ['sendDataToCloud', 'lasso2d', 'select2d'],
-          scrollZoom: true,
-          toImageButtonOptions: { format: 'png', filename: 'sensitivity_analysis', scale: 2 }
-        }).then(bindRelayout); /* react 会清除 .on 处理器，重渲染后重新绑定 */
-      }
-      function numRange(minS, maxS) {
-        const mn = parseFloat(minS), mx = parseFloat(maxS);
-        return isFinite(mn) && isFinite(mx) && mn < mx ? [mn, mx] : null;
-      }
-      /* 缩放后的优化的刻度步进：约 6~7 个主刻度，步进取 1/1.5/2/2.5/3/4/5/6/8/10 序列 */
-      function niceStep(span) {
-        if (!isFinite(span) || span <= 0) return null;
-        const raw = span / 6.5;
-        const pow = Math.pow(10, Math.floor(Math.log10(raw)));
-        const seq = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
-        for (let i = 0; i < seq.length; i++) if (raw <= seq[i] * pow) return seq[i] * pow;
-        return 10 * pow;
-      }
 
-      /* ============ 导出 ============ */
-      function download(text, filename, mime) {
-        const blob = new Blob([text], { type: mime + ';charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-      /* TXT：按仪器原始格式回写（重命名/删除/导出选择） */
-      function buildTxtExport(nameMap, exportIds) {
-        const versionTag = state.dataFormat;
-        const beginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
-        const endMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
-        const blocks = state.originalContent.split(beginMarker);
-        const originalNames = state.originalContent.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
-        let output = '';
-        for (let i = 1; i < blocks.length; i++) {
-          const origName = (originalNames[i - 1] || '').replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '');
-          const ds = state.datasets.find(d => d.originalName === origName);
-          const dsId = ds ? ds.id : -1;
-          if (!exportIds.has(dsId)) continue;
-          const block = blocks[i];
-          const endIdx = block.indexOf(endMarker);
-          const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.trim();
-          const currentName = nameMap[dsId] || (ds ? ds.name : 'CH_' + (i - 1));
-          output += beginMarker + '\n' + blockBody + '\n' + endMarker + '\n';
-          output += '##name_of_data_set begin\n' + currentName + '\n##name_of_data_set end\n\n';
-        }
-        return output.trim();
-      }
-      /* MD 报告 */
-      function buildMDReport() {
-        const R = L.report, zh = I18N.lang() === 'zh';
-        const lines = [
-          '# 📊 ' + tt(R.title),
-          '> ' + tt(R.time) + ': ' + new Date().toLocaleString(zh ? 'zh-CN' : 'en-US'),
-          '> ' + tt(R.file) + ': ' + (state.fileName || '?'),
-          ''
-        ];
-        lines.push('## 1. ' + tt(R.overview));
-        lines.push('- ' + tt(R.total) + ': ' + state.datasets.length);
-        lines.push('- ' + tt(R.shown) + ': ' + state.activeIndices.length);
-        lines.push('');
-        let sec = 2;
-        if (state.analysisEnabled) {
-          lines.push('## ' + sec + '. ' + tt(R.limitsSec));
-          sec++;
-          const rows = Array.from(document.querySelectorAll('#limits-list .limit-row')).map(row => {
-            const k = row.querySelector('label').textContent;
-            const v = parseFloat(row.querySelector('input[type="number"]').value);
-            return [k, v];
-          });
-          if (rows.length) {
-            lines.push('| ' + tt(R.combo) + ' | ' + tt(R.limitCol) + ' |');
-            lines.push('|------|------|');
-            rows.sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => lines.push('| **' + k + '** | ' + v + ' |'));
-          } else lines.push('- ' + tt(R.noneSet));
-          lines.push('');
-
-          lines.push('## ' + sec + '. ' + tt(R.summarySec));
-          sec++;
-          const shown = state.datasets.filter(d => state.activeIndices.includes(d.id));
-          const summary = {};
-          shown.forEach(ds => {
-            const { profile, rate } = parseProfileAndRate(ds.name);
-            const key = profile + '-' + rate;
-            if (!summary[key]) summary[key] = { total: 0, pass: 0, fail: 0 };
-            summary[key].total++;
-            if (ds.stats.max <= getLimitForDataset(ds)) summary[key].pass++;
-            else summary[key].fail++;
-          });
-          lines.push('| ' + tt(R.combo) + ' | ' + tt(R.totalCol) + ' | ' + tt(R.passCol) + ' | ' + tt(R.failCol) + ' | ' + tt(R.rateCol) + ' |');
-          lines.push('|------|------|------|------|------|');
-          Object.entries(summary).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, v]) => {
-            lines.push('| **' + k + '** | ' + v.total + ' | ' + v.pass + ' | ' + v.fail + ' | **' + (v.pass / v.total * 100).toFixed(1) + '%** |');
-          });
-          lines.push('');
-          const tp = Object.values(summary).reduce((s, v) => s + v.pass, 0);
-          const tf = Object.values(summary).reduce((s, v) => s + v.fail, 0);
-          lines.push('### ' + tt(R.overall));
-          lines.push('- ' + tt(R.totalTests) + ': ' + (tp + tf));
-          lines.push('- ' + tt(R.passCol) + ': ' + tp);
-          lines.push('- ' + tt(R.failCol) + ': ' + tf);
-          lines.push('- ' + tt(R.rateCol) + ': **' + (tp + tf > 0 ? (tp / (tp + tf) * 100).toFixed(1) : 0) + '%**');
-          lines.push('');
-        }
-        const cols = columns();
-        lines.push('## ' + sec + '. ' + tt(R.detail));
-        lines.push('| ' + cols.map(c => colText(c.key)).join(' | ') + ' |');
-        lines.push('|' + cols.map(() => '------').join('|') + '|');
-        state.datasets.filter(d => state.activeIndices.includes(d.id)).forEach(ds => {
-          const cells = cols.map(c => {
-            if (c.key === 'name') return ds.name;
-            if (c.key === 'status') {
-              const st = ds.stats.max <= getLimitForDataset(ds) ? 'PASS' : 'FAIL';
-              return '**' + st + '**';
+            50% {
+                opacity: .6;
             }
-            return ds.stats[c.key].toFixed(2);
-          });
-          lines.push('| ' + cells.join(' | ') + ' |');
-        });
-        return lines.join('\n');
-      }
-      /* CSV：全部原始数据点 */
-      function buildCSV() {
-        const v4 = state.dataFormat === 'V4';
-        let csv = v4
-          ? 'Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s),Return Phase (deg)\n'
-          : 'Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s)\n';
-        state.datasets.forEach(ds => {
-          ds.data.forEach(p => {
-            let row = '"' + ds.name.replace(/"/g, '""') + '",' + p.power + ',' + p.sens + ',' + p.blf + ',' + p.phase + ',' + p.rl + ',' + p.time;
-            if (v4) row += p.returnPhase !== undefined ? ',' + p.returnPhase : ',';
-            csv += row + '\n';
-          });
-        });
-        return csv;
-      }
+        }
 
-      /* ============ 配置对话框 ============ */
-      let dlgDeleted = new Set(), dlgExportIds = new Set();
-      function updateCount() {
-        $('dlg-count').textContent = tt({ zh: '已选择 %A% / %B% 条曲线用于导出', en: '%A% / %B% traces selected for export' })
-          .replace('%A%', dlgExportIds.size).replace('%B%', state.datasets.length);
-      }
-      function openDialog() {
-        if (!state.datasets.length) { alert(T('sen.msg.noData')); return; }
-        dlgDeleted = new Set();
-        dlgExportIds = new Set(state.datasets.map(d => d.id));
-        const box = $('names-list');
-        box.innerHTML = '';
-        state.datasets.forEach(ds => {
-          const row = document.createElement('div');
-          row.className = 'name-row';
-          row.dataset.id = ds.id;
-          const cb = document.createElement('input');
-          cb.type = 'checkbox'; cb.checked = true;
-          cb.addEventListener('change', () => {
-            if (cb.checked) dlgExportIds.add(ds.id); else dlgExportIds.delete(ds.id);
-            updateCount(); syncSelectAll();
-          });
-          const idl = document.createElement('span');
-          idl.className = 'row-id'; idl.textContent = 'ID ' + ds.id;
-          const nameI = document.createElement('input');
-          nameI.type = 'text'; nameI.value = ds.name; nameI.dataset.id = ds.id;
-          const act = document.createElement('button');
-          act.type = 'button'; act.className = 'row-act'; act.textContent = '✕'; act.title = T('sen.del');
-          act.addEventListener('click', () => {
-            const deleted = dlgDeleted.has(ds.id);
-            if (deleted) {
-              dlgDeleted.delete(ds.id); dlgExportIds.add(ds.id);
-              row.classList.remove('deleted'); cb.checked = true; cb.disabled = false;
-              act.textContent = '✕'; act.title = T('sen.del');
+        @keyframes cdnSlideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes cdnSlideOut {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+        }
+
+        @keyframes cdnSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #cdnLoaderBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100000;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 12px;
+            animation: cdnSlideIn .3s ease-out;
+            transition: opacity .4s, transform .4s;
+        }
+
+        #cdnLoaderBar.cdn-exit {
+            animation: cdnSlideOut .4s ease-in forwards;
+        }
+
+        .cdn-bar-bg {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2a2d3e 100%);
+            color: #cdd6f4;
+            padding: 8px 16px 10px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .cdn-bar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .cdn-bar-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .cdn-bar-title .cdn-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(205, 214, 244, 0.3);
+            border-top-color: #89b4fa;
+            border-radius: 50%;
+            animation: cdnSpin .8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .cdn-bar-title .cdn-done-icon {
+            color: #a6e3a1;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .cdn-bar-title .cdn-warn-icon {
+            color: #f9e2af;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .cdn-bar-title .cdn-fail-icon {
+            color: #f38ba8;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .cdn-bar-status {
+            font-size: 11px;
+            color: #a6adc8;
+        }
+
+        .cdn-progress-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .cdn-progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width .4s ease, background .4s;
+            background: linear-gradient(90deg, #89b4fa, #74c7ec);
+        }
+
+        .cdn-progress-fill.cdn-success {
+            background: linear-gradient(90deg, #a6e3a1, #94e2d5);
+        }
+
+        .cdn-progress-fill.cdn-warning {
+            background: linear-gradient(90deg, #f9e2af, #fab387);
+        }
+
+        .cdn-progress-fill.cdn-error {
+            background: linear-gradient(90deg, #f38ba8, #eba0ac);
+        }
+
+        .cdn-log {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height .3s ease;
+        }
+
+        .cdn-log.cdn-log-open {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .cdn-log-inner {
+            padding: 6px 0 0;
+            font-size: 10px;
+            line-height: 1.7;
+            color: #7f849c;
+        }
+
+        .cdn-log-inner::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .cdn-log-inner::-webkit-scrollbar-thumb {
+            background: #45475a;
+            border-radius: 2px;
+        }
+
+        .cdn-log-entry {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .cdn-log-entry .cdn-log-ok {
+            color: #a6e3a1;
+        }
+
+        .cdn-log-entry .cdn-log-fail {
+            color: #f38ba8;
+        }
+
+        .cdn-log-entry .cdn-log-time {
+            color: #585b70;
+            font-size: 9px;
+            white-space: nowrap;
+        }
+
+        .cdn-toggle-log {
+            background: none;
+            border: none;
+            color: #7f849c;
+            cursor: pointer;
+            font-size: 10px;
+            padding: 0;
+            text-decoration: underline;
+        }
+
+        .cdn-toggle-log:hover {
+            color: #cdd6f4;
+        }
+    </style>
+    <script>
+        (function () {
+            // CDN源列表：中国大陆稳定源优先，国际源作为备选
+            const CDN_LIST = [
+                // === 中国大陆CDN源（优先） ===
+                { url: 'https://registry.npmmirror.com/plotly.js/2.27.0/files/dist/plotly.min.js', name: 'npmmirror' },
+                { url: 'https://cdn.staticfile.org/plotly.js/2.27.0/plotly.min.js', name: 'staticfile' },
+                { url: 'https://cdn.bootcdn.net/ajax/libs/plotly.js/2.27.0/plotly.min.js', name: 'bootcdn' },
+                { url: 'https://lib.baomitu.com/plotly.js/2.27.0/plotly.min.js', name: 'baomitu' },
+                // === 国际CDN源（jsDelivr有中国ICP备案） ===
+                { url: 'https://cdn.jsdelivr.net/npm/plotly.js@2.27.0/dist/plotly.min.js', name: 'jsDelivr' },
+                { url: 'https://fastly.jsdelivr.net/npm/plotly.js-dist@2.27.0/plotly.min.js', name: 'fastly' },
+                { url: 'https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js', name: 'cloudflare' },
+                { url: 'https://cdn.plot.ly/plotly-2.27.0.min.js', name: 'plot.ly' },
+                { url: 'https://unpkg.com/plotly.js-dist@2.27.0/plotly.min.js', name: 'unpkg' }
+            ];
+            const LOCAL_PATH = '/assets/js/plotly.min.js';
+            const CDN_TIMEOUT = 5000; // 单个CDN超时时间5秒
+            let currentIndex = 0,
+                isLoading = false,
+                appInitialized = false,
+                currentTimer = null,
+                loadSource = 'cdn', // 'cdn' | 'local'
+                logEntries = [],
+                startTime = Date.now();
+
+            // ===== 进度条UI系统 =====
+            function getElapsedSec() {
+                return ((Date.now() - startTime) / 1000).toFixed(1);
+            }
+
+            function addLog(text, status) {
+                logEntries.push({ text: text, status: status, time: getElapsedSec() + 's' });
+                renderLog();
+            }
+
+            function renderLog() {
+                var logEl = document.getElementById('cdnLogInner');
+                if (!logEl) return;
+                var html = '';
+                logEntries.forEach(function (e) {
+                    var icon = e.status === 'ok' ? '<span class="cdn-log-ok">✔</span>' :
+                        e.status === 'fail' ? '<span class="cdn-log-fail">✘</span>' :
+                            '<span>▸</span>';
+                    html += '<div class="cdn-log-entry">' + icon +
+                        '<span class="cdn-log-time">' + e.time + '</span>' +
+                        '<span>' + e.text + '</span></div>';
+                });
+                logEl.innerHTML = html;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+
+            function createBar() {
+                if (document.getElementById('cdnLoaderBar')) return;
+                var bar = document.createElement('div');
+                bar.id = 'cdnLoaderBar';
+                bar.innerHTML =
+                    '<div class="cdn-bar-bg">' +
+                    '<div class="cdn-bar-header">' +
+                    '<div class="cdn-bar-title">' +
+                    '<span class="cdn-spinner"></span>' +
+                    '<span id="cdnBarLabel">正在加载绘图库...</span>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;gap:10px;">' +
+                    '<span class="cdn-bar-status" id="cdnBarStatus">0 / ' + CDN_LIST.length + '</span>' +
+                    '<button class="cdn-toggle-log" id="cdnToggleLog">详情</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="cdn-progress-track"><div class="cdn-progress-fill" id="cdnProgressFill" style="width:0%"></div></div>' +
+                    '<div class="cdn-log" id="cdnLogWrap"><div class="cdn-log-inner" id="cdnLogInner"></div></div>' +
+                    '</div>';
+                document.body.appendChild(bar);
+                document.getElementById('cdnToggleLog').onclick = function () {
+                    var wrap = document.getElementById('cdnLogWrap');
+                    wrap.classList.toggle('cdn-log-open');
+                    this.textContent = wrap.classList.contains('cdn-log-open') ? '收起' : '详情';
+                };
+            }
+
+            function updateProgress(current, total, percent) {
+                var fill = document.getElementById('cdnProgressFill');
+                var status = document.getElementById('cdnBarStatus');
+                if (fill) fill.style.width = percent + '%';
+                if (status) status.textContent = current + ' / ' + total;
+            }
+
+            function setBarLabel(html) {
+                var el = document.getElementById('cdnBarLabel');
+                if (el) el.innerHTML = html;
+            }
+
+            function replaceSpinner(cls, iconHtml) {
+                var spinner = document.querySelector('#cdnLoaderBar .cdn-spinner');
+                if (spinner) {
+                    var span = document.createElement('span');
+                    span.className = cls;
+                    span.innerHTML = iconHtml;
+                    spinner.parentNode.replaceChild(span, spinner);
+                }
+            }
+
+            function setProgressStyle(style) {
+                var fill = document.getElementById('cdnProgressFill');
+                if (fill) { fill.className = 'cdn-progress-fill cdn-' + style; }
+            }
+
+            function hideBar(delay) {
+                var bar = document.getElementById('cdnLoaderBar');
+                if (!bar) return;
+                setTimeout(function () {
+                    bar.classList.add('cdn-exit');
+                    setTimeout(function () { if (bar.parentNode) bar.remove(); }, 400);
+                }, delay || 0);
+            }
+
+            // ===== 应用初始化 =====
+            function tryInitApp() {
+                if (appInitialized) return;
+                if (!window.initPlotlyApp) return;
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function () {
+                        if (!appInitialized) {
+                            window.initPlotlyApp();
+                            appInitialized = true;
+                        }
+                    });
+                } else {
+                    window.initPlotlyApp();
+                    appInitialized = true;
+                }
+            }
+
+            // ===== CDN加载 =====
+            function loadFromCDN() {
+                if (isLoading) return;
+                if (currentIndex >= CDN_LIST.length) {
+                    addLog('所有CDN源均不可用，回退至本地文件...', 'fail');
+                    loadFromLocal();
+                    return;
+                }
+                isLoading = true;
+                var cdn = CDN_LIST[currentIndex];
+                var src = cdn.url;
+                var name = cdn.name;
+                var progress = Math.round(((currentIndex) / (CDN_LIST.length + 1)) * 100);
+                updateProgress(currentIndex, CDN_LIST.length, progress);
+                addLog('尝试 ' + name + ' ...', 'info');
+
+                var script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+
+                currentTimer = setTimeout(function () {
+                    console.warn('从 ' + name + ' 加载超时');
+                    addLog(name + ' 超时（' + (CDN_TIMEOUT / 1000) + '秒）', 'fail');
+                    script.onerror = null;
+                    isLoading = false;
+                    currentIndex++;
+                    loadFromCDN();
+                }, CDN_TIMEOUT);
+
+                script.onload = function () {
+                    clearTimeout(currentTimer);
+                    var elapsed = getElapsedSec();
+                    console.log('成功从 ' + name + ' 加载Plotly（耗时 ' + elapsed + 's）');
+                    addLog(name + ' 加载成功！（耗时 ' + elapsed + 's）', 'ok');
+                    isLoading = false;
+                    loadSource = 'cdn';
+                    onLoadSuccess(name, elapsed);
+                };
+                script.onerror = function () {
+                    clearTimeout(currentTimer);
+                    console.warn('从 ' + name + ' 加载失败');
+                    addLog(name + ' 连接失败', 'fail');
+                    currentIndex++;
+                    isLoading = false;
+                    setTimeout(loadFromCDN, 200);
+                };
+                document.head.appendChild(script);
+            }
+
+            // ===== 本地文件加载 =====
+            function loadFromLocal() {
+                loadSource = 'local';
+                addLog('加载本地 plotly.min.js ...', 'info');
+                var progress = Math.round((CDN_LIST.length / (CDN_LIST.length + 1)) * 100);
+                updateProgress(CDN_LIST.length, CDN_LIST.length + 1, progress);
+
+                var script = document.createElement('script');
+                script.src = LOCAL_PATH;
+                script.async = true;
+
+                var localTimer = setTimeout(function () {
+                    addLog('本地文件加载超时', 'fail');
+                    script.onerror = null;
+                    onLoadAllFailed();
+                }, 10000);
+
+                script.onload = function () {
+                    clearTimeout(localTimer);
+                    addLog('本地文件加载成功！', 'ok');
+                    onLoadSuccess('本地文件', getElapsedSec());
+                };
+                script.onerror = function () {
+                    clearTimeout(localTimer);
+                    addLog('本地文件加载失败', 'fail');
+                    onLoadAllFailed();
+                };
+                document.head.appendChild(script);
+            }
+
+            // ===== 加载成功 =====
+            function onLoadSuccess(sourceName, elapsed) {
+                updateProgress(loadSource === 'local' ? CDN_LIST.length + 1 : currentIndex + 1,
+                    CDN_LIST.length + 1, 100);
+                setProgressStyle(loadSource === 'local' ? 'warning' : 'success');
+                replaceSpinner(
+                    loadSource === 'local' ? 'cdn-warn-icon' : 'cdn-done-icon',
+                    loadSource === 'local' ? '⚠' : '✔'
+                );
+                setBarLabel(
+                    (loadSource === 'local'
+                        ? '<b style="color:#f9e2af;">已回退至本地文件</b>（CDN不可用）'
+                        : '<b style="color:#a6e3a1;">绘图库加载完成</b>') +
+                    ' <span style="color:#7f849c;font-weight:400;">— ' + sourceName + '（' + elapsed + 's）</span>'
+                );
+                tryInitApp();
+                hideBar(loadSource === 'local' ? 5000 : 3000);
+            }
+
+            // ===== 全部失败 =====
+            function onLoadAllFailed() {
+                setProgressStyle('error');
+                replaceSpinner('cdn-fail-icon', '✘');
+                setBarLabel('<b style="color:#f38ba8;">绘图库加载失败</b>');
+                updateProgress(CDN_LIST.length + 1, CDN_LIST.length + 1, 100);
+                showLoadErrorDialog();
+                hideBar(0);
+            }
+
+            // ===== 错误弹窗 =====
+            function showLoadErrorDialog() {
+                function renderError() {
+                    var overlay = document.getElementById('cdnErrorOverlay');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = 'cdnErrorOverlay';
+                        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                        document.body.appendChild(overlay);
+                    }
+                    overlay.innerHTML =
+                        '<div style="background:#1e1e2e;border-radius:16px;padding:40px 36px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);color:#cdd6f4;font-family:system-ui,-apple-system,sans-serif;text-align:center;">' +
+                        '<div style="width:64px;height:64px;margin:0 auto 20px;border-radius:50%;background:rgba(243,139,168,0.15);display:flex;align-items:center;justify-content:center;">' +
+                        '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f38ba8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+                        '</div>' +
+                        '<h2 style="color:#f38ba8;margin:0 0 12px;font-size:20px;font-weight:600;">绘图库加载失败</h2>' +
+                        '<p style="color:#a6adc8;line-height:1.7;margin:0 0 20px;font-size:14px;">所有CDN源及本地文件均无法加载Plotly.js。</p>' +
+                        '<div style="background:#181825;border-radius:10px;padding:16px 20px;text-align:left;margin:0 0 24px;">' +
+                        '<p style="margin:0 0 10px;color:#89b4fa;font-weight:600;font-size:13px;">排查建议：</p>' +
+                        '<ul style="margin:0;padding-left:18px;color:#a6adc8;font-size:13px;line-height:1.8;">' +
+                        '<li>检查网络连接是否正常</li>' +
+                        '<li>确认本地 plotly.min.js 文件与HTML位于同一目录</li>' +
+                        '<li>如果使用代理/VPN，尝试关闭后重试</li>' +
+                        '<li>清除浏览器缓存后重试（Ctrl+Shift+Delete）</li>' +
+                        '</ul>' +
+                        '</div>' +
+                        '<div style="display:flex;gap:12px;justify-content:center;">' +
+                        '<button onclick="document.getElementById(\'cdnErrorOverlay\').remove();" style="background:#313244;color:#cdd6f4;border:none;padding:10px 24px;border-radius:10px;cursor:pointer;font-size:14px;transition:background 0.2s;">关闭</button>' +
+                        '<button id="cdnRetryBtn" style="background:linear-gradient(135deg,#89b4fa,#74c7ec);color:#1e1e2e;border:none;padding:10px 28px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:600;box-shadow:0 4px 15px rgba(137,180,250,0.4);transition:transform 0.2s,box-shadow 0.2s;">重新加载</button>' +
+                        '</div>' +
+                        '</div>';
+                    var retryBtn = document.getElementById('cdnRetryBtn');
+                    if (retryBtn) {
+                        retryBtn.onclick = function () {
+                            overlay.remove();
+                            var oldScripts = document.querySelectorAll('script[src*="plotly"]');
+                            oldScripts.forEach(function (s) { s.remove(); });
+                            currentIndex = 0;
+                            isLoading = false;
+                            loadSource = 'cdn';
+                            logEntries = [];
+                            startTime = Date.now();
+                            // 移除旧进度条，重新创建
+                            var oldBar = document.getElementById('cdnLoaderBar');
+                            if (oldBar) oldBar.remove();
+                            initAndLoad();
+                        };
+                    }
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', renderError);
+                } else {
+                    renderError();
+                }
+            }
+
+            // ===== file:// 协议检测提示（5秒自动消失） =====
+            function checkFileProtocol() {
+                if (location.protocol !== 'file:') return;
+                document.addEventListener('DOMContentLoaded', function () {
+                    var existing = document.getElementById('fileProtocolTip');
+                    if (existing) return;
+                    var tip = document.createElement('div');
+                    tip.id = 'fileProtocolTip';
+                    tip.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#1e1e2e;padding:8px 20px;border-radius:8px;font-size:12px;z-index:99998;box-shadow:0 2px 12px rgba(0,0,0,0.3);font-family:system-ui,sans-serif;white-space:nowrap;cursor:pointer;transition:opacity 0.3s;';
+                    tip.innerHTML = '当前以本地文件方式打开，部分浏览器功能可能受限。推荐通过本地HTTP服务器访问（如 python -m http.server）';
+                    tip.onclick = function () { tip.style.opacity = '0'; setTimeout(function () { tip.remove(); }, 300); };
+                    document.body.appendChild(tip);
+                    // 5秒后自动消失
+                    setTimeout(function () { if (tip.parentNode) { tip.style.opacity = '0'; setTimeout(function () { tip.remove(); }, 300); } }, 5000);
+                });
+            }
+
+            // ===== 入口 =====
+            function initAndLoad() {
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function () {
+                        createBar();
+                        loadFromCDN();
+                    });
+                } else {
+                    createBar();
+                    loadFromCDN();
+                }
+            }
+
+            checkFileProtocol();
+            if (window.Plotly) {
+                console.log('Plotly已存在于全局作用域，使用缓存版本');
+                tryInitApp();
             } else {
-              dlgDeleted.add(ds.id); dlgExportIds.delete(ds.id);
-              row.classList.add('deleted'); cb.checked = false; cb.disabled = true;
-              act.textContent = '↩'; act.title = T('sen.restore');
+                initAndLoad();
             }
-            updateCount(); syncSelectAll();
-          });
-          row.appendChild(cb); row.appendChild(idl); row.appendChild(nameI); row.appendChild(act);
-          box.appendChild(row);
-        });
-        $('dlg-select-all').checked = true;
-        updateCount();
-        $('overlay').classList.add('show');
-      }
-      function syncSelectAll() {
-        const cbs = document.querySelectorAll('#names-list .name-row input[type="checkbox"]');
-        $('dlg-select-all').checked = Array.from(cbs).every(cb => cb.checked || cb.disabled);
-      }
-      function closeDialog() { $('overlay').classList.remove('show'); }
-      function saveNames() {
-        document.querySelectorAll('#names-list input[type="text"]').forEach(input => {
-          const ds = state.datasets.find(d => d.id === parseInt(input.dataset.id));
-          if (ds && input.value.trim()) ds.name = input.value.trim();
-        });
-        if (dlgDeleted.size > 0) {
-          state.datasets = state.datasets.filter(d => !dlgDeleted.has(d.id));
-          state.datasets.forEach((ds, i) => ds.id = i);
-          state.activeIndices = state.datasets.map(d => d.id);
-          dlgDeleted.clear(); dlgExportIds.clear();
+        })();
+    </script>
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #dbeafe;
+            --bg-color: #f0f4f8;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --panel-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --header-bg: #ffffff;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e1;
+            --input-focus-ring: rgba(37, 99, 235, 0.15);
+            --bg-hover: #eff6ff;
+            --bg-active: #fefce8;
+            --bg-active-border: #facc15;
+            --chart-bg: #ffffff;
+            --chart-grid: #f1f5f9;
+            --shadow-color: rgba(0, 0, 0, 0.04);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
+            --shadow-heavy: 0 8px 30px rgba(0, 0, 0, 0.12);
+            --overlay-bg: rgba(15, 23, 42, 0.3);
+            --slider-off: #cbd5e1;
+            --slider-thumb: #ffffff;
+            --btn-secondary-bg: #f1f5f9;
+            --border-light: #f1f5f9;
+            --header-height: 52px;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --sort-color: #2563eb;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --transition-speed: 0.2s;
+            --scrollbar-thumb: #c1c9d4;
+            --scrollbar-track: #f1f5f9;
         }
-        if (state.analysisEnabled) buildLimitsPanel();
-        generateProfileFilters();
-        initColumnFilters();
-        buildTableHeader();
-        renderTableBody();
-        updateChart();
-        refreshToolbar();
-        closeDialog();
-      }
 
-      /* ============ 主题 / 语言跟随 ============ */
-      new MutationObserver(() => updateChart())
-        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-      document.addEventListener('langchange', () => {
-        generateProfileFilters();
-        if (state.analysisEnabled) buildLimitsPanel();
-        buildTableHeader();
-        renderTableBody();
-        updateChart();
-        refreshToolbar();
-      });
-
-      /* ============ 事件绑定 ============ */
-      function bind() {
-        $('dropzone').addEventListener('click', () => $('file-input').click());
-        $('file-input').addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); e.target.value = ''; });
-        ['dragover', 'dragenter'].forEach(ev => $('dropzone').addEventListener(ev, e => { e.preventDefault(); $('dropzone').classList.add('dragover'); }));
-        ['dragleave', 'drop'].forEach(ev => $('dropzone').addEventListener(ev, e => { e.preventDefault(); $('dropzone').classList.remove('dragover'); }));
-        $('dropzone').addEventListener('drop', e => { if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
-        document.addEventListener('dragover', e => e.preventDefault());
-        document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
-
-        $('analysis-toggle').addEventListener('change', e => {
-          state.analysisEnabled = e.target.checked;
-          if (state.analysisEnabled) buildLimitsPanel();
-          else { $('limits-list').innerHTML = ''; }
-          initColumnFilters();
-          buildTableHeader();
-          renderTableBody();
-          updateChart();
-        });
-        $('col-filter-toggle').addEventListener('change', e => {
-          state.showColumnFilters = e.target.checked;
-          buildTableHeader();
-          renderTableBody();
-        });
-        $('name-filter').addEventListener('input', () => { updateActiveDatasets(); renderTableBody(); updateChart(); });
-
-        $('x-axis-mode').addEventListener('change', e => {
-          state.xMode = e.target.value;
-          const presets = { phase: [0, 360, 45], power: [27, 30, 0.5], blf: [0, 30, 5], rl: [15, 25, 1] };
-          const p = presets[state.xMode];
-          $('x-min').value = p[0]; $('x-max').value = p[1]; $('x-step').value = p[2];
-          manualTick.x = true;
-          updateChart();
-        });
-        ['x-min', 'x-max'].forEach(id => {
-          $(id).addEventListener('input', function () { manualTick.x = true; renderTableBody(); updateChart(); });
-        });
-        ['y-min', 'y-max'].forEach(id => {
-          $(id).addEventListener('input', function () { manualTick.y = true; renderTableBody(); updateChart(); });
-        });
-        $('x-step').addEventListener('input', function () { manualTick.x = true; renderTableBody(); updateChart(); });
-        $('y-step').addEventListener('input', function () { manualTick.y = true; renderTableBody(); updateChart(); });
-        ['line-width', 'marker-size'].forEach(id => {
-          $(id).addEventListener('input', () => { renderTableBody(); updateChart(); });
-        });
-        $('btn-reset-y').addEventListener('click', () => {
-          $('y-min').value = -90; $('y-max').value = -70; $('y-step').value = 2;
-          manualTick.y = true;
-          updateChart();
-        });
-        $('btn-export-png').addEventListener('click', () => {
-          if (window.Plotly) Plotly.downloadImage('sen-plot', { format: 'png', filename: 'sensitivity_analysis', scale: 2 });
-        });
-        $('btn-export-md').addEventListener('click', () => download(buildMDReport(), 'sensitivity_report_' + Date.now() + '.md', 'text/markdown'));
-        $('btn-export-csv').addEventListener('click', () => download(buildCSV(), 'sensitivity_data_' + Date.now() + '.csv', 'text/csv'));
-        $('btn-export-txt').addEventListener('click', () => {
-          const nameMap = {};
-          state.datasets.forEach(ds => nameMap[ds.id] = ds.name);
-          download(buildTxtExport(nameMap, new Set(state.datasets.map(d => d.id))), 'sensitivity_' + Date.now() + '.txt', 'text/plain');
-        });
-        $('btn-config').addEventListener('click', openDialog);
-        $('dlg-close').addEventListener('click', closeDialog);
-        $('dlg-close2').addEventListener('click', closeDialog);
-        $('overlay').addEventListener('click', e => { if (e.target === $('overlay')) closeDialog(); });
-        $('dlg-save').addEventListener('click', saveNames);
-        $('dlg-export-txt').addEventListener('click', () => {
-          const nameMap = {};
-          document.querySelectorAll('#names-list input[type="text"]').forEach(input => {
-            nameMap[parseInt(input.dataset.id)] = input.value.trim();
-          });
-          const ids = dlgExportIds.size ? dlgExportIds : new Set(state.datasets.map(d => d.id));
-          download(buildTxtExport(nameMap, ids), 'sensitivity_' + Date.now() + '.txt', 'text/plain');
-        });
-        $('dlg-select-all').addEventListener('change', e => {
-          document.querySelectorAll('#names-list .name-row input[type="checkbox"]').forEach(cb => {
-            if (cb.disabled) return;
-            cb.checked = e.target.checked;
-            const id = parseInt(cb.closest('.name-row').dataset.id);
-            if (e.target.checked) dlgExportIds.add(id); else dlgExportIds.delete(id);
-          });
-          updateCount();
-        });
-        window.addEventListener('resize', () => { if (plotReady && plotDiv.data) Plotly.Plots.resize(plotDiv); });
-      }
-
-      var plotDiv = null, plotReady = false;
-      /* 刻度状态：manualTick 为真时用输入框的 Min/Max/Tick；缩放/平移后转自动（Plotly 按缩放级别细化刻度） */
-      var manualTick = { x: true, y: true };
-      var lastRange = { x: null, y: null };
-      function relayoutHandler(ed) {
-        function rangeOf(axis) {
-          if (ed[axis] && ed[axis].range) return ed[axis].range.slice();
-          const key = axis + '.range';
-          if (ed[key] && ed[key].length === 2) return ed[key].slice();
-          const lo = ed[axis + '.range[0]'], hi = ed[axis + '.range[1]'];
-          return (lo !== undefined && hi !== undefined) ? [lo, hi] : null;
+        [data-theme="dark"] {
+            --primary-color: #60a5fa;
+            --primary-hover: #3b82f6;
+            --primary-light: #1e3a5f;
+            --bg-color: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --panel-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --header-bg: #1e293b;
+            --input-bg: #0f172a;
+            --input-border: #475569;
+            --input-focus-ring: rgba(96, 165, 250, 0.2);
+            --bg-hover: #334155;
+            --bg-active: #422006;
+            --bg-active-border: #f59e0b;
+            --chart-bg: #1e293b;
+            --chart-grid: #334155;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+            --shadow-heavy: 0 8px 30px rgba(0, 0, 0, 0.5);
+            --overlay-bg: rgba(0, 0, 0, 0.6);
+            --slider-off: #475569;
+            --slider-thumb: #f1f5f9;
+            --btn-secondary-bg: #334155;
+            --border-light: #334155;
+            --sort-color: #60a5fa;
+            --scrollbar-thumb: #475569;
+            --scrollbar-track: #1e293b;
         }
-        var touched = false;
-        const xr = rangeOf('xaxis');
-        if (xr) { lastRange.x = xr; manualTick.x = false; touched = true; }
-        const yr = rangeOf('yaxis');
-        if (yr) { lastRange.y = yr; manualTick.y = false; touched = true; }
-        if (touched) updateChart(); /* 重渲染：保留缩放范围，刻度按缩放级别自动细化 */
-      }
-      /* Plotly.react 会清除 .on() 处理器，因此每次重渲染后重新绑定 */
-      function bindRelayout() {
-        if (plotDiv && plotDiv.on) plotDiv.on('plotly_relayout', relayoutHandler);
-      }
-      function ensurePlot() {
-        if (!plotDiv) {
-          plotDiv = $('sen-plot');
-          Plotly.newPlot(plotDiv, [{ x: [], y: [], mode: 'lines' }], {
-            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-            margin: { t: 30, r: 190, b: 60, l: 60 }, font: { family: 'inherit' }
-          }, { responsive: true, displaylogo: false }).then(() => { plotReady = true; bindRelayout(); });
+
+        * {
+            box-sizing: border-box;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
         }
-      }
 
-      /* ============ 初始化 ============ */
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-      else init();
-      function init() {
-        ensurePlot();
-        bind();
-        initColumnFilters();
-        buildTableHeader();
-        refreshToolbar();
-      }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
 
-      /* 供自动化测试 */
-      window.__SEN_TEST = {
-        parseData, parseProfileAndRate, buildTxtExport, buildMDReport, buildCSV,
-        loadText: (name, content) => { state.fileName = name; state.originalContent = content; parseData(content); afterDataLoaded(); },
-        datasets: () => state.datasets,
-        activeIndices: () => state.activeIndices,
-        setLimit: (key, v) => { state.limits[key] = v; renderTableBody(); updateChart(); },
-        setAnalysis: v => { state.analysisEnabled = v; $('analysis-toggle').checked = v; if (v) buildLimitsPanel(); initColumnFilters(); buildTableHeader(); renderTableBody(); updateChart(); },
-        dbg: function () { return { manualTick: JSON.parse(JSON.stringify(manualTick)), lastRange: JSON.parse(JSON.stringify(lastRange)) }; }
-      };
-    })();
-  </script>
+        header {
+            height: var(--header-height);
+            background: var(--header-bg);
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            flex-shrink: 0;
+            z-index: 10;
+            box-shadow: var(--shadow-sm);
+        }
+
+        header h1 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            letter-spacing: -0.01em;
+        }
+
+        .main-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - var(--header-height));
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 310px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            height: 100%;
+        }
+
+        .sidebar-header {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--header-bg);
+            flex-shrink: 0;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .sidebar-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-content::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 3px;
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            background: var(--header-bg);
+            flex-shrink: 0;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 2px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .panel-header {
+            background: var(--bg-tertiary);
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .panel-body {
+            padding: 10px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-sub);
+            margin-bottom: 3px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-sub);
+            margin-bottom: 3px;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 12px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            background: var(--input-bg);
+            color: var(--text-main);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--input-focus-ring);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .grid-2 label {
+            font-size: 10px;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            transition: background-color 0.15s, transform 0.1s, box-shadow 0.15s;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+            box-shadow: var(--shadow-sm);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.secondary {
+            background: var(--btn-secondary-bg);
+            color: var(--text-main);
+            border: 1px solid var(--input-border);
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        button.secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+        }
+
+        button.success {
+            background: var(--success-color);
+        }
+
+        button.success:hover {
+            background: #16a34a;
+        }
+
+        .file-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-drop {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 12px;
+            text-align: center;
+            cursor: pointer;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s, background-color 0.2s, transform 0.15s;
+        }
+
+        .file-drop:hover {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+        }
+
+        .file-drop.drag-over {
+            border-color: var(--primary-color);
+            background: var(--primary-light);
+            transform: scale(1.02);
+        }
+
+        .file-drop.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .file-drop.disabled input[type="file"] {
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .file-drop input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
+            z-index: 2;
+        }
+
+        .file-drop div {
+            position: relative;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .config-btn {
+            background: var(--btn-secondary-bg);
+            color: var(--text-main);
+            border: 1px solid var(--input-border);
+            padding: 14px 20px;
+            text-align: center;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: background-color 0.15s, border-color 0.15s;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .content-area::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+
+        .chart-container {
+            background: var(--chart-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            height: 55vh;
+            min-height: 400px;
+            position: relative;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .table-container {
+            flex: 1;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 250px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table-scroll {
+            overflow: auto;
+            flex: 1;
+        }
+
+        .table-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-scroll::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+
+        .table-scroll::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 2px solid var(--border-color);
+            vertical-align: bottom;
+            color: var(--text-sub);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .th-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            padding: 2px 0;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .filter-row input {
+            width: 100%;
+            padding: 4px 6px;
+            font-size: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-main);
+        }
+
+        .filter-row input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--input-focus-ring);
+        }
+
+        .filter-row .range-min,
+        .filter-row .range-max {
+            width: 50%;
+        }
+
+        td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-main);
+            font-variant-numeric: tabular-nums;
+            transition: background-color 0.1s;
+        }
+
+        tr:nth-child(even) td {
+            background-color: var(--bg-secondary);
+        }
+
+        tr:hover td {
+            background: var(--bg-hover) !important;
+        }
+
+        tr.active-row td {
+            background: var(--bg-active) !important;
+            border-top: 1px solid var(--bg-active-border);
+            border-bottom: 1px solid var(--bg-active-border);
+        }
+
+        #filterValuesList label {
+            font-weight: normal;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+            cursor: pointer;
+            padding: 3px 4px;
+            border-radius: 4px;
+            transition: background-color 0.1s;
+        }
+
+        #filterValuesList label:hover {
+            background: var(--bg-hover);
+        }
+
+        #filterValuesList input {
+            width: auto;
+            margin: 0;
+            accent-color: var(--primary-color);
+        }
+
+        #nameFilter {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 12px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            background: var(--input-bg);
+            color: var(--text-main);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        #nameFilter:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--input-focus-ring);
+        }
+
+        .filter-checkbox-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .filter-checkbox-row label {
+            margin: 0 0 0 4px;
+            font-size: 12px;
+            color: var(--text-main);
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .filter-checkbox-row input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--primary-color);
+        }
+
+        th.sort-asc .th-content span:first-child::after {
+            content: ' ▲';
+            color: var(--sort-color);
+            font-size: 10px;
+            margin-left: 2px;
+        }
+
+        th.sort-desc .th-content span:first-child::after {
+            content: ' ▼';
+            color: var(--sort-color);
+            font-size: 10px;
+            margin-left: 2px;
+        }
+
+        #limitsPanel .limit-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 20px;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        #limitsPanel .limit-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--primary-color);
+        }
+
+        #limitsPanel .limit-row label {
+            margin: 0;
+            font-size: 10px;
+        }
+
+        #configDialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-heavy);
+            width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 24px;
+            z-index: 100;
+            display: none;
+            color: var(--text-main);
+        }
+
+        #configDialog::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #configDialog::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+
+        #configDialog::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 3px;
+        }
+
+        #configDialog h2 {
+            margin-top: 0;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .config-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+
+        .config-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .config-toolbar-left label {
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-weight: normal;
+            font-size: 12px;
+            color: var(--text-main);
+        }
+
+        .config-toolbar-left label input {
+            width: auto;
+            margin: 0;
+        }
+
+        .config-export-count {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .name-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            padding: 6px 8px;
+            border-radius: var(--radius-sm);
+            transition: background-color 0.1s, opacity 0.15s;
+        }
+
+        .name-row:hover {
+            background: var(--bg-hover);
+        }
+
+        .name-row.deleted {
+            opacity: 0.45;
+        }
+
+        .name-row.deleted:hover {
+            opacity: 0.6;
+        }
+
+        .name-row.deleted .name-input {
+            text-decoration: line-through;
+        }
+
+        .name-row .row-checkbox {
+            width: auto;
+            margin: 0 6px 0 0;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .name-row .row-id {
+            width: 60px;
+            flex-shrink: 0;
+            font-size: 11px;
+            color: var(--text-sub);
+            margin-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .name-row .name-input {
+            flex: 1;
+            margin: 0 8px 0 0;
+            min-width: 0;
+        }
+
+        .name-row .row-action-btn {
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+            transition: transform 0.1s;
+        }
+
+        .name-row .row-action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .name-row .row-action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .name-row .btn-delete {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .name-row .btn-restore {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .dialog-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .dialog-buttons button {
+            width: auto;
+            padding: 8px 20px;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay-bg);
+            z-index: 99;
+            display: none;
+            transition: background-color var(--transition-speed);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-left: 10px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--slider-off);
+            transition: background-color 0.2s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--slider-thumb);
+            transition: transform 0.2s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        input:disabled+.slider {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .panel-body.collapsed {
+            max-height: 0;
+            overflow: hidden;
+            padding: 0;
+            border: none;
+            transition: max-height 0.3s ease-out;
+        }
+
+        #themeToggle {
+            position: fixed;
+            top: 10px;
+            right: 16px;
+            z-index: 50;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.15s, box-shadow 0.15s;
+            padding: 0;
+            width: 36px;
+            flex-shrink: 0;
+        }
+
+        #themeToggle:hover {
+            transform: scale(1.08);
+            box-shadow: var(--shadow-md);
+        }
+
+        #themeToggle:active {
+            transform: scale(0.95);
+        }
+
+        .embedded-data-badge {
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-left: 10px;
+            background-color: var(--success-color);
+            color: white;
+            vertical-align: middle;
+            letter-spacing: 0.02em;
+        }
+
+        .embedded-data-info {
+            background: var(--primary-light);
+            border-left: 3px solid var(--primary-color);
+            padding: 10px 14px;
+            margin-top: 8px;
+            font-size: 11px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            color: var(--text-sub);
+        }
+
+        .embedded-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .embedded-toggle-label {
+            font-size: 12px;
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .embedded-toggle-label .switch {
+            flex-shrink: 0;
+        }
+
+        .embedded-no-data-tip {
+            font-size: 10px;
+            color: var(--danger-color);
+            font-weight: normal;
+        }
+
+        .seal-config-btn {
+            position: fixed;
+            top: 10px;
+            right: 58px;
+            z-index: 50;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.4;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--panel-bg);
+            color: var(--text-sub);
+            cursor: pointer;
+            white-space: nowrap;
+            width: fit-content;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .seal-config-btn:hover {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+            transform: scale(1.02);
+            box-shadow: var(--shadow-md);
+        }
+
+        .seal-config-btn:active {
+            transform: scale(0.97);
+        }
+
+        .config-sealed-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            font-size: 10px;
+            color: var(--success-color);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 4px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="sealConfigBtn" class="seal-config-btn" style="display:none;" title="锁定当前配置，生成不可篡改的网页副本">🔒 锁定</button>
+    <button id="themeToggle" title="切换主题">☀</button>
+    <header>
+        <a href="/" style="font-size:13px; color:var(--text-sub); text-decoration:none; flex-shrink:0; padding:4px 10px; border:1px solid var(--border-color); border-radius:16px; transition:all var(--transition-speed);" onmouseover="this.style.color='var(--primary-color)';this.style.borderColor='var(--primary-color)'" onmouseout="this.style.color='var(--text-sub)';this.style.borderColor='var(--border-color)'">← 返回首页</a>
+        <h1>Xplore 灵敏度测试数据分析工具
+            <span id="embeddedBadge" class="embedded-data-badge" style="display:none;">内置数据</span>
+        </h1>
+        <div class="embedded-toggle-row">
+            <div class="embedded-toggle-label">
+                <span>嵌入数据</span>
+                <label class="switch">
+                    <input type="checkbox" id="embeddedDataToggle">
+                    <span class="slider"></span>
+                </label>
+                <span id="embeddedNoDataTip" class="embedded-no-data-tip" style="display:none;">(未配置)</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="file-controls">
+                    <div class="file-drop" id="dropZone">
+                        <div style="font-size:16px;">📂 上传 TXT 数据</div>
+                        <input type="file" id="fileInput" accept=".txt">
+                    </div>
+                    <div class="config-btn" id="configBtn" style="display:none;">⚙️ 数据配置</div>
+                </div>
+                <div id="fileName" style="margin-top:5px; font-size:10px; color:var(--text-sub); text-align:center;">
+                </div>
+                <div class="embedded-data-info" id="embeddedDataInfo" style="display:none;">
+                    <strong>内置数据已加载</strong><br>
+                    此页面包含预置的测试数据，您仍可上传新文件覆盖当前数据。
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="panel">
+                    <div class="panel-header">数据过滤</div>
+                    <div class="panel-body">
+                        <label for="nameFilter">曲线名称过滤</label>
+                        <input type="text" id="nameFilter" placeholder="输入关键字过滤...">
+
+                        <!-- 新增：显示列筛选复选框，位于曲线名称过滤下侧 -->
+                        <div class="filter-checkbox-row">
+                            <input type="checkbox" id="toggleColumnFilter">
+                            <label for="toggleColumnFilter">显示列筛选（在表格列头下方）</label>
+                        </div>
+
+                        <div class="filter-label">Profile和速率组合</div>
+                        <div id="filterValuesList"
+                            style="max-height:120px; overflow-y:auto; border:1px solid var(--border-color); padding:6px; margin-top:5px; background:var(--bg-secondary); border-radius:var(--radius-sm);">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" id="limitsPanel">
+                    <div class="panel-header"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>分析标准</span>
+                        <label class="switch">
+                            <input type="checkbox" id="analysisToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="panel-body collapsed" id="limitsList"></div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">坐标轴与样式</div>
+                    <div class="panel-body">
+                        <label for="xAxisMode">X轴显示内容</label>
+                        <select id="xAxisMode">
+                            <option value="phase">相位 (Phase)</option>
+                            <option value="power">发射功率 (Power)</option>
+                            <option value="rl">回波损耗 (RL)</option>
+                        </select>
+                        <div class="grid-2">
+                            <div><label for="xMin">X Min</label><input type="number" id="xMin" value="0"></div>
+                            <div><label for="xMax">X Max</label><input type="number" id="xMax" value="360"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div><label for="xStep">X 步进(Tick)</label><input type="number" id="xStep" value="30"></div>
+                            <div><label for="yStep">Y 步进(Tick)</label><input type="number" id="yStep" value="1"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div><label for="yMin">Y Min</label><input type="number" id="yMin" value="-90"></div>
+                            <div><label for="yMax">Y Max</label><input type="number" id="yMax" value="-70"></div>
+                        </div>
+                        <div class="grid-2">
+                            <div><label for="lineWidth">线宽</label><input type="number" id="lineWidth" value="1.5"></div>
+                            <div><label for="markerSize">点大小</label><input type="number" id="markerSize" value="4">
+                            </div>
+                        </div>
+                        <button class="secondary" id="resetViewBtn">重置视图范围</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button id="exportChartBtn" style="margin-bottom:8px;">📷 导出图片 (PNG)</button>
+                <button class="success" id="exportReportBtn">📝 生成分析报告</button>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <div class="chart-container" id="plotDiv">
+                <div id="welcomeOverlay"
+                    style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:var(--text-sub); pointer-events:none;">
+                    <div style="font-size:40px; margin-bottom:12px; opacity:0.4;">📊</div>
+                    <h3 style="color:var(--text-main); margin-bottom:8px; font-weight:600;">欢迎使用</h3>
+                    <p style="font-size:13px;">请在左侧侧边栏导入数据开始分析</p>
+                </div>
+            </div>
+
+            <div class="table-container" id="tableCard" style="display:none;">
+                <!-- 表格工具栏已移除，列筛选复选框已移至侧边栏 -->
+                <div class="table-scroll">
+                    <table id="statsTable">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="overlay"></div>
+    <div id="configDialog">
+        <h2>数据配置</h2>
+        <div class="config-toolbar">
+            <div class="config-toolbar-left">
+                <label><input type="checkbox" id="configSelectAll" checked> 全选</label>
+            </div>
+            <span class="config-export-count" id="configExportCount"></span>
+        </div>
+        <div id="namesList"></div>
+        <div class="dialog-buttons">
+            <button id="saveNamesBtn">保存修改</button>
+            <button class="secondary" id="exportModifiedTxtBtn">导出数据</button>
+            <button class="secondary" id="closeDialogBtn">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var saved = localStorage.getItem('theme') || localStorage.getItem('gyboy-theme');
+            if (saved === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+            function applyIcon() {
+                var btn = document.getElementById('themeToggle');
+                if (!btn) return;
+                var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                btn.textContent = isDark ? '☾' : '☀';
+            }
+            applyIcon();
+            document.addEventListener('DOMContentLoaded', function () {
+                applyIcon();
+                document.getElementById('themeToggle').addEventListener('click', function () {
+                    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                    if (isDark) {
+                        document.documentElement.removeAttribute('data-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                    applyIcon();
+                    if (window.Plotly && typeof updatePlotlyTheme === 'function') {
+                        updatePlotlyTheme();
+                    }
+                });
+            });
+        })();
+
+        // 防止 initPlotlyApp 被重复调用导致事件绑定丢失
+        let _appInitialized = false;
+        window.initPlotlyApp = function () {
+            if (_appInitialized) return;
+            _appInitialized = true;
+
+            const state = {
+                datasets: [],
+                activeIndices: [],
+                highlightId: null,
+                xAxisMode: 'phase',
+                sort: { key: 'name', order: 'asc' },
+                limits: {},
+                originalContent: '',
+                analysisEnabled: false,
+                columnFilters: {},
+                showColumnFilters: false,
+                usingEmbeddedData: false,
+                embeddedDataLoaded: false,
+                configDeletedIds: new Set(),
+                configExportIds: new Set(),
+                dataFormat: 'V3'
+            };
+
+            const COLORS = ['#0052CC', '#00B8D9', '#36B37E', '#FFAB00', '#FF5630', '#6554C0', '#FF7452', '#4C9AFF', '#8777D9', '#57D9A3'];
+
+            function getCSSVar(name) {
+                return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            }
+
+            function getThemeColors() {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                return {
+                    plotBg: getCSSVar('--chart-bg') || '#ffffff',
+                    gridColor: getCSSVar('--chart-grid') || '#eeeeee',
+                    textColor: getCSSVar('--text-main') || '#1f2937',
+                    mutedLine: isDark ? '#4a4a6a' : '#cccccc',
+                    legendBg: isDark ? 'rgba(30,33,48,0.9)' : 'rgba(255,255,255,0.9)',
+                    paperBg: getCSSVar('--chart-bg') || '#ffffff'
+                };
+            }
+
+            // ---------- 列配置 ----------
+            const baseColumns = [
+                { key: 'name', label: '数据集名称(Name)', type: 'text' },
+                { key: 'powerAvg', label: '发射功率(Power Avg)', type: 'number' },
+                { key: 'returnLoss', label: '回波损耗(RL)', type: 'number' },
+                { key: 'min', label: '最小灵敏度(Min Sens)', type: 'number' },
+                { key: 'max', label: '最大灵敏度(Max Sens)', type: 'number' },
+                { key: 'avg', label: '平均灵敏度(Avg Sens)', type: 'number' },
+                { key: 'range', label: '灵敏度范围(Range)', type: 'number' }
+            ];
+
+            function getCurrentColumns() {
+                if (state.analysisEnabled) {
+                    return [...baseColumns, { key: 'status', label: '测试结果(Status)', type: 'text' }];
+                }
+                return baseColumns;
+            }
+
+            // 初始化列筛选条件
+            function initColumnFilters() {
+                const cols = getCurrentColumns();
+                cols.forEach(col => {
+                    if (col.type === 'text') {
+                        if (!state.columnFilters[col.key]) state.columnFilters[col.key] = { text: '' };
+                        else if (state.columnFilters[col.key].text === undefined) state.columnFilters[col.key].text = '';
+                    } else { // number
+                        if (!state.columnFilters[col.key]) state.columnFilters[col.key] = { min: null, max: null };
+                        else {
+                            if (state.columnFilters[col.key].min === undefined) state.columnFilters[col.key].min = null;
+                            if (state.columnFilters[col.key].max === undefined) state.columnFilters[col.key].max = null;
+                        }
+                    }
+                });
+            }
+            initColumnFilters();
+
+            // ---------- 文件加载 ----------
+            document.getElementById('fileInput').onchange = (e) => handleFile(e.target.files[0]);
+            const dropZone = document.getElementById('dropZone');
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+            dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+            });
+            document.getElementById('configBtn').onclick = openConfigDialog;
+            document.getElementById('closeDialogBtn').onclick = closeConfigDialog;
+            document.getElementById('saveNamesBtn').onclick = saveNames;
+            document.getElementById('exportModifiedTxtBtn').onclick = exportData;
+            document.getElementById('overlay').onclick = closeConfigDialog;
+
+            // ---------- 嵌入数据开关 ----------
+            const embeddedToggle = document.getElementById('embeddedDataToggle');
+            const embeddedNoDataTip = document.getElementById('embeddedNoDataTip');
+            const sealConfigBtn = document.getElementById('sealConfigBtn');
+            const isSealed = EMBEDDED_DATA_CONFIG._seal === true;
+
+            // 检测是否有可用的嵌入数据
+            function hasEmbeddedData() {
+                return typeof EMBEDDED_DATA_CONFIG !== 'undefined'
+                    && EMBEDDED_DATA_CONFIG.enabled
+                    && EMBEDDED_DATA_CONFIG.base64Data
+                    && EMBEDDED_DATA_CONFIG.base64Data.trim() !== '';
+            }
+
+            // 初始化嵌入数据开关状态
+            if (!hasEmbeddedData()) {
+                embeddedToggle.checked = false;
+                embeddedToggle.disabled = true;
+                embeddedNoDataTip.style.display = 'inline';
+            } else {
+                embeddedNoDataTip.style.display = 'none';
+            }
+
+            // 已锁定：隐藏开关、锁定按钮、禁用上传
+            if (isSealed) {
+                document.querySelector('.embedded-toggle-label').style.display = 'none';
+                sealConfigBtn.style.display = 'none';
+                (async () => {
+                    const valid = await verifyConfigSeal();
+                    if (!valid) {
+                        document.querySelector('.embedded-toggle-row').innerHTML =
+                            '<span style="color:var(--danger-color);font-size:12px;font-weight:500;">⚠ 配置完整性校验失败，数据可能已被篡改</span>';
+                        embeddedToggle.disabled = true;
+                        return;
+                    }
+                    const badge = document.createElement('span');
+                    badge.className = 'config-sealed-badge';
+                    badge.textContent = '🔒 配置已锁定';
+                    document.querySelector('.embedded-toggle-row').appendChild(badge);
+                })();
+            } else if (hasEmbeddedData()) {
+                sealConfigBtn.style.display = 'inline-block';
+            }
+
+            // ---------- 锁定配置功能 ----------
+            sealConfigBtn.addEventListener('click', async () => {
+                if (isSealed) return;
+                sealConfigBtn.disabled = true;
+                sealConfigBtn.textContent = '⏳ 生成中...';
+                try {
+                    const hash = await computeConfigHash(EMBEDDED_DATA_CONFIG);
+                    const sealedConfigStr =
+                        `const EMBEDDED_DATA_CONFIG = {
+            enabled: ${EMBEDDED_DATA_CONFIG.enabled},
+            disableFileUpload: ${EMBEDDED_DATA_CONFIG.disableFileUpload},
+            base64Data: ${JSON.stringify(EMBEDDED_DATA_CONFIG.base64Data)},
+            description: ${JSON.stringify(EMBEDDED_DATA_CONFIG.description)},
+            loadMessage: ${JSON.stringify(EMBEDDED_DATA_CONFIG.loadMessage)},
+            _seal: true,
+            _sealHash: "${hash}"
+        };`;
+                    let html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                    html = html.replace(
+                        /const EMBEDDED_DATA_CONFIG\s*=\s*\{[\s\S]*?\}\s*;/,
+                        sealedConfigStr
+                    );
+                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const baseName = document.title.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g, '_');
+                    a.download = baseName + '_已锁定.html';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    sealConfigBtn.textContent = '✅ 已生成';
+                    setTimeout(() => { sealConfigBtn.textContent = '🔒 锁定'; sealConfigBtn.disabled = false; }, 2000);
+                } catch (err) {
+                    console.error('锁定配置失败:', err);
+                    alert('锁定配置失败: ' + err.message);
+                    sealConfigBtn.textContent = '🔒 锁定';
+                    sealConfigBtn.disabled = false;
+                }
+            });
+
+            // 嵌入数据开关事件
+            embeddedToggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    if (!hasEmbeddedData()) {
+                        e.target.checked = false;
+                        return;
+                    }
+                    loadEmbeddedData();
+                } else {
+                    // 关闭嵌入数据：清空数据，恢复欢迎界面
+                    state.datasets = [];
+                    state.activeIndices = [];
+                    state.originalContent = '';
+                    state.usingEmbeddedData = false;
+                    state.embeddedDataLoaded = false;
+                    state.highlightId = null;
+                    state.columnFilters = {};
+                    state.limits = {};
+                    document.getElementById('embeddedBadge').style.display = 'none';
+                    document.getElementById('embeddedDataInfo').style.display = 'none';
+                    document.getElementById('fileName').textContent = '';
+                    document.getElementById('welcomeOverlay').style.display = '';
+                    document.getElementById('welcomeOverlay').innerHTML =
+                        '<h3 style="color:var(--text-main); margin-bottom:8px;">欢迎使用</h3>' +
+                        '<p>请在左侧侧边栏导入数据开始分析</p>';
+                    document.getElementById('tableCard').style.display = 'none';
+                    document.getElementById('configBtn').style.display = 'none';
+                    document.getElementById('filterValuesList').innerHTML = '';
+                    if (state.analysisEnabled) {
+                        document.getElementById('limitsList').innerHTML = '';
+                        document.getElementById('limitsList').classList.add('collapsed');
+                    }
+                    // 恢复文件上传功能
+                    document.getElementById('dropZone').classList.remove('disabled');
+                    document.getElementById('fileInput').disabled = false;
+                    document.getElementById('dropZone').querySelector('div').textContent = '📂 上传 TXT 数据';
+                    updateChart();
+                }
+            });
+
+            // 加载嵌入式数据
+            function loadEmbeddedData() {
+                if (!hasEmbeddedData()) return;
+                const decoded = decodeBase64Data(EMBEDDED_DATA_CONFIG.base64Data);
+                if (!decoded) {
+                    document.getElementById('welcomeOverlay').style.display = '';
+                    document.getElementById('welcomeOverlay').innerHTML =
+                        '<h3 style="color:var(--danger-color);">内置数据解码失败</h3>' +
+                        '<p>请检查EMBEDDED_DATA_CONFIG中的base64Data是否正确</p>';
+                    embeddedToggle.checked = false;
+                    return;
+                }
+                state.originalContent = decoded;
+                state.usingEmbeddedData = true;
+                state.embeddedDataLoaded = true;
+                document.getElementById('fileName').textContent =
+                    '内置: ' + (EMBEDDED_DATA_CONFIG.description || 'Xplore数据');
+                document.getElementById('welcomeOverlay').style.display = 'none';
+                document.getElementById('tableCard').style.display = 'flex';
+                document.getElementById('configBtn').style.display = 'inline-block';
+                document.getElementById('embeddedBadge').style.display = 'inline-block';
+                document.getElementById('embeddedDataInfo').style.display = 'block';
+
+                try {
+                    parseData(state.originalContent);
+                } catch (err) {
+                    console.error('解析嵌入数据出错:', err);
+                    document.getElementById('welcomeOverlay').style.display = '';
+                    document.getElementById('welcomeOverlay').innerHTML =
+                        '<h3 style="color:var(--danger-color);">内置数据解析失败</h3>' +
+                        '<p>错误信息: ' + err.message + '</p>';
+                    embeddedToggle.checked = false;
+                    state.usingEmbeddedData = false;
+                    state.embeddedDataLoaded = false;
+                    return;
+                }
+                if (state.datasets.length === 0) {
+                    document.getElementById('welcomeOverlay').style.display = '';
+                    document.getElementById('welcomeOverlay').innerHTML =
+                        '<h3 style="color:var(--danger-color);">内置数据无效</h3>' +
+                        '<p>嵌入的数据未包含有效的 ##Reader_sensitivity_measurement_V3 或 V4 标记</p>';
+                    embeddedToggle.checked = false;
+                    state.usingEmbeddedData = false;
+                    state.embeddedDataLoaded = false;
+                    return;
+                }
+                state.activeIndices = state.datasets.map(d => d.id);
+                if (state.analysisEnabled) buildLimitsPanel();
+                generateProfileAndRateFilters();
+                state.columnFilters = {};
+                state.showColumnFilters = false;
+                toggleFilterCheckbox.checked = false;
+                initColumnFilters();
+                buildTableHeader();
+                renderTableBody();
+                updateChart();
+
+                // 根据配置禁用文件上传
+                if (EMBEDDED_DATA_CONFIG.disableFileUpload) {
+                    document.getElementById('dropZone').classList.add('disabled');
+                    document.getElementById('fileInput').disabled = true;
+                    document.getElementById('dropZone').querySelector('div').textContent = '📂 内置数据已加载 (上传已禁用)';
+                    // 禁用嵌入数据开关，防止用户通过关闭开关恢复上传
+                    embeddedToggle.disabled = true;
+                }
+            }
+
+            // 分析标准开关
+            document.getElementById('analysisToggle').addEventListener('change', (e) => {
+                state.analysisEnabled = e.target.checked;
+                const limitsBody = document.getElementById('limitsList');
+                if (state.analysisEnabled) {
+                    limitsBody.classList.remove('collapsed');
+                    buildLimitsPanel();
+                } else {
+                    limitsBody.classList.add('collapsed');
+                    limitsBody.innerHTML = '';
+                }
+                // 列配置变化，重新初始化筛选条件（但保留已有值，只补全新列）
+                initColumnFilters();
+                buildTableHeader();
+                renderTableBody();
+                updateChart();
+            });
+
+            // 显示/隐藏列筛选复选框 (现在位于侧边栏)
+            const toggleFilterCheckbox = document.getElementById('toggleColumnFilter');
+            toggleFilterCheckbox.checked = state.showColumnFilters; // 初始false
+            toggleFilterCheckbox.addEventListener('change', (e) => {
+                state.showColumnFilters = e.target.checked;
+                // 重新构建表头以显示/隐藏筛选行
+                buildTableHeader();
+                renderTableBody(); // 重新渲染表格体（筛选逻辑会依据showColumnFilters决定是否应用）
+            });
+
+            function handleFile(file) {
+                if (!file) return;
+                // 如果配置了禁用文件上传且已加载嵌入数据，阻止上传
+                if (EMBEDDED_DATA_CONFIG.disableFileUpload && state.embeddedDataLoaded) {
+                    // 重置fileInput以清除已选文件
+                    document.getElementById('fileInput').value = '';
+                    return;
+                }
+                // 用户上传文件时，自动关闭嵌入数据开关并清除嵌入数据状态
+                if (state.usingEmbeddedData) {
+                    state.usingEmbeddedData = false;
+                    state.embeddedDataLoaded = false;
+                    embeddedToggle.checked = false;
+                    document.getElementById('embeddedBadge').style.display = 'none';
+                    document.getElementById('embeddedDataInfo').style.display = 'none';
+                }
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('welcomeOverlay').style.display = 'none';
+                document.getElementById('tableCard').style.display = 'flex';
+                document.getElementById('configBtn').style.display = 'inline-block';
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    state.originalContent = e.target.result;
+                    try {
+                        parseData(state.originalContent);
+                    } catch (err) {
+                        console.error('解析数据出错:', err);
+                        alert('数据解析失败，请确认文件格式正确。\n错误信息: ' + err.message);
+                        return;
+                    }
+                    if (state.datasets.length === 0) {
+                        alert('未能识别有效数据，请确认文件包含 ##Reader_sensitivity_measurement_V3 或 V4 标记。');
+                        return;
+                    }
+                    state.activeIndices = state.datasets.map(d => d.id);
+                    if (state.analysisEnabled) buildLimitsPanel();
+                    generateProfileAndRateFilters();
+                    state.columnFilters = {};
+                    state.showColumnFilters = false;
+                    toggleFilterCheckbox.checked = false;
+                    initColumnFilters();
+                    buildTableHeader();
+                    renderTableBody();
+                    updateChart();
+                };
+                reader.onerror = () => {
+                    alert('文件读取失败，请重试。');
+                };
+                // 显式指定UTF-8编码，避免部分系统默认GBK导致乱码
+                reader.readAsText(file, 'UTF-8');
+            }
+
+            function parseData(content) {
+                const hasV4 = /##Reader_sensitivity_measurement_V4 begin/.test(content);
+                const hasV3 = /##Reader_sensitivity_measurement_V3 begin/.test(content);
+                state.dataFormat = hasV4 ? 'V4' : (hasV3 ? 'V3' : 'V3');
+
+                const versionTag = state.dataFormat;
+                const beginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
+                const endMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
+
+                const blocks = content.split(beginMarker);
+                const names = content.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
+                state.datasets = blocks.slice(1).map((block, i) => {
+                    const endIdx = block.indexOf(endMarker);
+                    const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.split('##')[0].trim();
+                    const lines = blockBody.split(/\r?\n/);
+                    const data = lines.slice(1).map(l => {
+                        const p = l.trim().split(/\s+/);
+                        if (p.length < 6) return null;
+                        const point = { power: parseFloat(p[0]), sens: parseFloat(p[1]), blf: parseFloat(p[2]), phase: parseFloat(p[3]), rl: parseFloat(p[4]), time: parseFloat(p[5]) };
+                        if (p.length >= 7) point.returnPhase = parseFloat(p[6]);
+                        return point;
+                    }).filter(d => d !== null && !isNaN(d.sens));
+
+                    if (data.length === 0) return null;
+
+                    const sens = data.map(d => d.sens);
+                    const powers = data.map(d => d.power).filter(p => !isNaN(p));
+                    const nameMatch = (names[i] || 'CH_' + i).replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '');
+                    return {
+                        id: i,
+                        name: nameMatch,
+                        originalName: nameMatch,
+                        data: data,
+                        blockContent: blockBody,
+                        stats: {
+                            min: sens.length > 0 ? Math.min(...sens) : NaN,
+                            max: sens.length > 0 ? Math.max(...sens) : NaN,
+                            avg: sens.length > 0 ? sens.reduce((a, b) => a + b, 0) / sens.length : NaN,
+                            range: sens.length > 0 ? Math.max(...sens) - Math.min(...sens) : NaN,
+                            powerAvg: powers.length > 0 ? powers.reduce((a, b) => a + b, 0) / powers.length : NaN,
+                            returnLoss: data.find(d => !isNaN(d.rl))?.rl || 19.54
+                        }
+                    };
+                }).filter(ds => ds !== null);
+            }
+
+            // 构建表头 (带筛选行)
+            function buildTableHeader() {
+                const thead = document.querySelector('#statsTable thead');
+                thead.innerHTML = '';
+                const cols = getCurrentColumns();
+                const tr = document.createElement('tr');
+
+                cols.forEach(col => {
+                    const th = document.createElement('th');
+                    th.setAttribute('data-col', col.key);
+                    // 排序标题区
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'th-content';
+                    titleSpan.innerHTML = `<span style="flex:1;">${col.label}</span>`;
+                    titleSpan.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (state.sort.key === col.key) {
+                            state.sort.order = state.sort.order === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            state.sort.key = col.key;
+                            state.sort.order = 'asc';
+                        }
+                        document.querySelectorAll('#statsTable th').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                        th.classList.add(`sort-${state.sort.order}`);
+                        renderTableBody();
+                    });
+
+                    // 筛选输入区
+                    const filterDiv = document.createElement('div');
+                    filterDiv.className = 'filter-row';
+
+                    if (col.type === 'text') {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.placeholder = '筛选...';
+                        input.value = state.columnFilters[col.key]?.text || '';
+                        input.addEventListener('input', (e) => {
+                            state.columnFilters[col.key].text = e.target.value;
+                            renderTableBody();
+                        });
+                        filterDiv.appendChild(input);
+                    } else { // number
+                        const minInput = document.createElement('input');
+                        minInput.type = 'number';
+                        minInput.placeholder = '最小值';
+                        minInput.className = 'range-min';
+                        minInput.value = state.columnFilters[col.key]?.min !== null ? state.columnFilters[col.key].min : '';
+                        minInput.addEventListener('input', (e) => {
+                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                            state.columnFilters[col.key].min = val;
+                            renderTableBody();
+                        });
+
+                        const maxInput = document.createElement('input');
+                        maxInput.type = 'number';
+                        maxInput.placeholder = '最大值';
+                        maxInput.className = 'range-max';
+                        maxInput.value = state.columnFilters[col.key]?.max !== null ? state.columnFilters[col.key].max : '';
+                        maxInput.addEventListener('input', (e) => {
+                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                            state.columnFilters[col.key].max = val;
+                            renderTableBody();
+                        });
+
+                        filterDiv.appendChild(minInput);
+                        filterDiv.appendChild(maxInput);
+                    }
+
+                    // 根据showColumnFilters控制筛选行显示/隐藏
+                    filterDiv.style.display = state.showColumnFilters ? 'flex' : 'none';
+
+                    th.appendChild(titleSpan);
+                    th.appendChild(filterDiv);
+                    tr.appendChild(th);
+                });
+
+                thead.appendChild(tr);
+
+                // 设置初始排序样式
+                const sortedTh = document.querySelector(`#statsTable th[data-col="${state.sort.key}"]`);
+                if (sortedTh) sortedTh.classList.add(`sort-${state.sort.order}`);
+            }
+
+            // 渲染表格体 (应用筛选、排序)
+            function renderTableBody() {
+                const tbody = document.querySelector('#statsTable tbody');
+                tbody.innerHTML = '';
+
+                // 基础数据集 (activeIndices)
+                let displayData = state.datasets.filter(d => state.activeIndices.includes(d.id));
+
+                // 应用列筛选 (仅当showColumnFilters为true时)
+                if (state.showColumnFilters) {
+                    displayData = displayData.filter(ds => {
+                        const cols = getCurrentColumns();
+                        for (let col of cols) {
+                            const filter = state.columnFilters[col.key];
+                            if (!filter) continue;
+
+                            if (col.type === 'text') {
+                                const filterText = filter.text || '';
+                                if (filterText === '') continue;
+                                let cellValue = '';
+                                if (col.key === 'name') cellValue = ds.name;
+                                else if (col.key === 'status' && state.analysisEnabled) {
+                                    const limit = getLimitForDataset(ds);
+                                    cellValue = ds.stats.max <= limit ? 'PASS' : 'FAIL';
+                                } else continue;
+                                if (!cellValue.toLowerCase().includes(filterText.toLowerCase())) return false;
+                            } else { // number
+                                let val = null;
+                                if (col.key === 'powerAvg') val = ds.stats.powerAvg;
+                                else if (col.key === 'returnLoss') val = ds.stats.returnLoss;
+                                else if (col.key === 'min') val = ds.stats.min;
+                                else if (col.key === 'max') val = ds.stats.max;
+                                else if (col.key === 'avg') val = ds.stats.avg;
+                                else if (col.key === 'range') val = ds.stats.range;
+                                if (val === null) continue;
+
+                                if (filter.min !== null && val < filter.min) return false;
+                                if (filter.max !== null && val > filter.max) return false;
+                            }
+                        }
+                        return true;
+                    });
+                }
+
+                // 排序
+                displayData.sort((a, b) => {
+                    let va, vb;
+                    const key = state.sort.key;
+                    if (key === 'name') { va = a.name; vb = b.name; }
+                    else if (key === 'powerAvg') { va = a.stats.powerAvg; vb = b.stats.powerAvg; }
+                    else if (key === 'returnLoss') { va = a.stats.returnLoss; vb = b.stats.returnLoss; }
+                    else if (key === 'min') { va = a.stats.min; vb = b.stats.min; }
+                    else if (key === 'max') { va = a.stats.max; vb = b.stats.max; }
+                    else if (key === 'avg') { va = a.stats.avg; vb = b.stats.avg; }
+                    else if (key === 'range') { va = a.stats.range; vb = b.stats.range; }
+                    else if (key === 'status' && state.analysisEnabled) {
+                        const limitA = getLimitForDataset(a);
+                        const limitB = getLimitForDataset(b);
+                        va = a.stats.max <= limitA ? 0 : 1;
+                        vb = b.stats.max <= limitB ? 0 : 1;
+                    } else return 0;
+                    const res = (typeof va === 'string' ? va.localeCompare(vb) : (va > vb ? 1 : -1));
+                    return state.sort.order === 'asc' ? res : -res;
+                });
+
+                // 构建行
+                displayData.forEach(ds => {
+                    const tr = document.createElement('tr');
+                    if (state.highlightId === ds.id) tr.classList.add('active-row');
+
+                    const cols = getCurrentColumns();
+                    cols.forEach(col => {
+                        const td = document.createElement('td');
+                        if (col.key === 'name') td.textContent = ds.name;
+                        else if (col.key === 'powerAvg') td.textContent = ds.stats.powerAvg.toFixed(2);
+                        else if (col.key === 'returnLoss') td.textContent = ds.stats.returnLoss.toFixed(2);
+                        else if (col.key === 'min') td.textContent = ds.stats.min.toFixed(2);
+                        else if (col.key === 'max') td.textContent = ds.stats.max.toFixed(2);
+                        else if (col.key === 'avg') td.textContent = ds.stats.avg.toFixed(2);
+                        else if (col.key === 'range') td.textContent = ds.stats.range.toFixed(2);
+                        else if (col.key === 'status' && state.analysisEnabled) {
+                            const limit = getLimitForDataset(ds);
+                            const status = ds.stats.max <= limit ? 'PASS' : 'FAIL';
+                            td.textContent = status;
+                            td.style.color = status === 'PASS' ? 'var(--success-color)' : 'var(--danger-color)';
+                            td.style.fontWeight = 'bold';
+                        } else td.textContent = '';
+                        tr.appendChild(td);
+                    });
+
+                    tr.ondblclick = () => {
+                        state.highlightId = state.highlightId === ds.id ? null : ds.id;
+                        renderTableBody();
+                        updateChart();
+                    };
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // 辅助函数: parseProfileAndRate, generateProfileAndRateFilters, updateActiveDatasets, applyNameFilter 等保持不变
+            function parseProfileAndRate(name) {
+                const profiles = ['M4', 'M8', 'FM0', 'M2'];
+                let profile = '', rate = '';
+                for (let p of profiles) if (name.toUpperCase().includes(p)) { profile = p; break; }
+                const m = name.match(/(\d+)K/i);
+                if (m) rate = m[1] + 'K';
+                if (!rate) {
+                    const rlMatch = name.match(/RL(\d+)/i);
+                    if (rlMatch) rate = 'RL' + rlMatch[1];
+                }
+                return { profile, rate };
+            }
+
+            function generateProfileAndRateFilters() {
+                const container = document.getElementById('filterValuesList');
+                container.innerHTML = '';
+                const combos = {};
+                state.datasets.forEach(ds => {
+                    const { profile, rate } = parseProfileAndRate(ds.name);
+                    const key = `${profile}-${rate}`;
+                    if (!combos[key]) combos[key] = [];
+                    combos[key].push(ds.id);
+                });
+                Object.keys(combos).sort().forEach(key => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `<input type="checkbox" checked value="${key}"> ${key} <span style="color:var(--text-sub);font-size:9px;">(${combos[key].length})</span>`;
+                    label.querySelector('input').onchange = () => {
+                        updateActiveDatasets();
+                        renderTableBody();
+                        updateChart();
+                    };
+                    container.appendChild(label);
+                });
+            }
+
+            function updateActiveDatasets() {
+                const checked = Array.from(document.querySelectorAll('#filterValuesList input:checked')).map(i => i.value);
+                state.activeIndices = [];
+                checked.forEach(key => {
+                    const [profile, rate] = key.split('-');
+                    state.datasets.forEach(ds => {
+                        const info = parseProfileAndRate(ds.name);
+                        if (info.profile === profile && info.rate === rate) state.activeIndices.push(ds.id);
+                    });
+                });
+                applyNameFilter();
+            }
+
+            function applyNameFilter() {
+                const kw = document.getElementById('nameFilter').value.trim().toLowerCase();
+                if (!kw) return;
+                state.activeIndices = state.activeIndices.filter(id => state.datasets.find(d => d.id === id).name.toLowerCase().includes(kw));
+            }
+
+            document.getElementById('nameFilter').addEventListener('input', () => {
+                updateActiveDatasets();
+                renderTableBody();
+                updateChart();
+            });
+
+            // 合格线面板
+            function buildLimitsPanel() {
+                if (!state.analysisEnabled) return;
+                const container = document.getElementById('limitsList');
+                container.innerHTML = '';
+                const combos = new Set();
+                state.datasets.forEach(ds => {
+                    const { profile, rate } = parseProfileAndRate(ds.name);
+                    if (profile && rate) combos.add(`${profile}-${rate}`);
+                });
+                combos.forEach(key => {
+                    const row = document.createElement('div');
+                    row.className = 'limit-row';
+                    row.innerHTML = `
+                        <label for="limit-${key}">${key}</label>
+                        <input type="number" id="limit-${key}" value="${state.limits[key] ?? '-80'}" step="0.5">
+                        <input type="checkbox" id="show-${key}" checked>
+                    `;
+                    container.appendChild(row);
+                    row.querySelector(`#limit-${key}`).onchange = () => {
+                        state.limits[key] = parseFloat(row.querySelector(`#limit-${key}`).value);
+                        renderTableBody();
+                        updateChart();
+                    };
+                    row.querySelector(`#show-${key}`).onchange = updateChart;
+                });
+            }
+
+            function getLimitForDataset(ds) {
+                const { profile, rate } = parseProfileAndRate(ds.name);
+                const key = `${profile}-${rate}`;
+                return state.limits[key] !== undefined ? state.limits[key] : -80;
+            }
+
+            // 绘图
+            function updateChart() {
+                if (!window.Plotly) return;
+                const tc = getThemeColors();
+                const traces = state.datasets.filter(d => state.activeIndices.includes(d.id)).map(ds => {
+                    const isH = state.highlightId === null || state.highlightId === ds.id;
+                    return {
+                        x: ds.data.map(d => d[state.xAxisMode]),
+                        y: ds.data.map(d => d.sens),
+                        name: ds.name,
+                        mode: 'lines+markers',
+                        line: { width: isH ? +document.getElementById('lineWidth').value : 1, color: isH ? COLORS[ds.id % COLORS.length] : tc.mutedLine },
+                        marker: { size: +document.getElementById('markerSize').value },
+                        opacity: isH ? 1 : 0.25,
+                        type: 'scatter'
+                    };
+                });
+
+                if (state.analysisEnabled) {
+                    const activeCombos = new Set();
+                    state.datasets.filter(d => state.activeIndices.includes(d.id)).forEach(ds => {
+                        const { profile, rate } = parseProfileAndRate(ds.name);
+                        if (profile && rate) activeCombos.add(`${profile}-${rate}`);
+                    });
+                    activeCombos.forEach(key => {
+                        const show = document.getElementById(`show-${key}`)?.checked;
+                        const limit = parseFloat(document.getElementById(`limit-${key}`)?.value);
+                        if (show && !isNaN(limit)) {
+                            traces.push({
+                                x: [+document.getElementById('xMin').value, +document.getElementById('xMax').value],
+                                y: [limit, limit],
+                                mode: 'lines',
+                                name: `${key} Limit`,
+                                line: { color: 'red', dash: 'dash', width: 1.5 },
+                                hovertemplate: `${key} Limit: ${limit} dBm<extra></extra>`
+                            });
+                        }
+                    });
+                }
+
+                const layout = {
+                    autosize: true,
+                    paper_bgcolor: tc.paperBg,
+                    plot_bgcolor: tc.plotBg,
+                    margin: { t: 30, r: 200, b: 65, l: 60 },
+                    font: { color: tc.textColor },
+                    xaxis: {
+                        title: state.xAxisMode.toUpperCase(),
+                        titlestandoff: 10,
+                        range: [+document.getElementById('xMin').value, +document.getElementById('xMax').value],
+                        dtick: +document.getElementById('xStep').value > 0 ? +document.getElementById('xStep').value : null,
+                        gridcolor: tc.gridColor,
+                        zerolinecolor: tc.gridColor
+                    },
+                    yaxis: {
+                        title: 'Sensitivity (dBm)',
+                        range: [+document.getElementById('yMin').value, +document.getElementById('yMax').value],
+                        dtick: +document.getElementById('yStep').value > 0 ? +document.getElementById('yStep').value : null,
+                        gridcolor: tc.gridColor,
+                        zerolinecolor: tc.gridColor
+                    },
+                    showlegend: true,
+                    legend: { x: 1.02, y: 1, xanchor: 'left', font: { size: 10, color: tc.textColor }, bgcolor: tc.legendBg, bordercolor: tc.gridColor, borderwidth: 1 },
+                    hovermode: 'closest'
+                };
+                Plotly.react('plotDiv', traces, layout, {
+                    responsive: true,
+                    displaylogo: false,
+                    // 禁用可能触发iframe/跨源的功能，避免file://协议下报错
+                    modeBarButtonsToRemove: ['sendDataToCloud'],
+                    scrollZoom: true
+                });
+            }
+
+            // 事件绑定
+            document.getElementById('xAxisMode').onchange = (e) => {
+                state.xAxisMode = e.target.value;
+                const xMin = document.getElementById('xMin'), xMax = document.getElementById('xMax'), xStep = document.getElementById('xStep');
+                if (e.target.value === 'phase') { xMin.value = 0; xMax.value = 360; xStep.value = 45; }
+                else if (e.target.value === 'power') { xMin.value = 27; xMax.value = 30; xStep.value = 0.5; }
+                else { xMin.value = 0; xMax.value = 30; xStep.value = 5; }
+                updateChart();
+            };
+
+            ['xMin', 'xMax', 'xStep', 'yMin', 'yMax', 'yStep', 'lineWidth', 'markerSize'].forEach(id => {
+                document.getElementById(id).onchange = () => {
+                    renderTableBody();
+                    updateChart();
+                };
+            });
+
+            document.getElementById('resetViewBtn').onclick = () => {
+                document.getElementById('yMin').value = -90;
+                document.getElementById('yMax').value = -70;
+                document.getElementById('yStep').value = 2;
+                updateChart();
+            };
+
+            document.getElementById('exportChartBtn').onclick = () => Plotly.downloadImage('plotDiv', { format: 'png', filename: 'analysis' });
+
+            // 配置对话框
+            function updateConfigExportCount() {
+                const count = state.configExportIds.size;
+                const total = state.datasets.length;
+                document.getElementById('configExportCount').textContent = `已选择 ${count} / ${total} 条曲线用于导出`;
+            }
+
+            function openConfigDialog() {
+                if (state.datasets.length === 0) return alert('请先导入数据');
+                state.configDeletedIds = new Set();
+                state.configExportIds = new Set(state.datasets.map(d => d.id));
+
+                const container = document.getElementById('namesList');
+                container.innerHTML = '';
+
+                state.datasets.forEach(ds => {
+                    const row = document.createElement('div');
+                    row.className = 'name-row';
+                    row.dataset.id = ds.id;
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = true;
+                    checkbox.className = 'row-checkbox';
+                    checkbox.addEventListener('change', () => {
+                        if (checkbox.checked) {
+                            state.configExportIds.add(ds.id);
+                        } else {
+                            state.configExportIds.delete(ds.id);
+                        }
+                        updateConfigExportCount();
+                        updateSelectAllState();
+                    });
+
+                    const idLabel = document.createElement('span');
+                    idLabel.className = 'row-id';
+                    idLabel.textContent = `ID ${ds.id}`;
+
+                    const nameInput = document.createElement('input');
+                    nameInput.type = 'text';
+                    nameInput.value = ds.name;
+                    nameInput.dataset.id = ds.id;
+                    nameInput.className = 'name-input';
+
+                    const actionBtn = document.createElement('button');
+                    actionBtn.type = 'button';
+                    actionBtn.className = 'row-action-btn btn-delete';
+                    actionBtn.textContent = '✕';
+                    actionBtn.title = '删除此曲线';
+                    actionBtn.addEventListener('click', () => {
+                        const isDeleted = state.configDeletedIds.has(ds.id);
+                        if (isDeleted) {
+                            state.configDeletedIds.delete(ds.id);
+                            state.configExportIds.add(ds.id);
+                            row.classList.remove('deleted');
+                            checkbox.checked = true;
+                            checkbox.disabled = false;
+                            actionBtn.className = 'row-action-btn btn-delete';
+                            actionBtn.textContent = '✕';
+                            actionBtn.title = '删除此曲线';
+                            nameInput.disabled = false;
+                        } else {
+                            state.configDeletedIds.add(ds.id);
+                            state.configExportIds.delete(ds.id);
+                            row.classList.add('deleted');
+                            checkbox.checked = false;
+                            checkbox.disabled = true;
+                            actionBtn.className = 'row-action-btn btn-restore';
+                            actionBtn.textContent = '↩';
+                            actionBtn.title = '恢复此曲线';
+                            nameInput.disabled = false;
+                        }
+                        updateConfigExportCount();
+                        updateSelectAllState();
+                    });
+
+                    row.appendChild(checkbox);
+                    row.appendChild(idLabel);
+                    row.appendChild(nameInput);
+                    row.appendChild(actionBtn);
+                    container.appendChild(row);
+                });
+
+                document.getElementById('configSelectAll').checked = true;
+                updateConfigExportCount();
+                document.getElementById('overlay').style.display = 'block';
+                document.getElementById('configDialog').style.display = 'block';
+            }
+
+            function updateSelectAllState() {
+                const allCheckboxes = document.querySelectorAll('#namesList .row-checkbox');
+                const allChecked = Array.from(allCheckboxes).every(cb => cb.checked || cb.disabled);
+                document.getElementById('configSelectAll').checked = allChecked;
+            }
+
+            document.getElementById('configSelectAll').addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                document.querySelectorAll('#namesList .row-checkbox').forEach(cb => {
+                    if (cb.disabled) return;
+                    cb.checked = checked;
+                    const id = parseInt(cb.closest('.name-row').dataset.id);
+                    if (checked) {
+                        state.configExportIds.add(id);
+                    } else {
+                        state.configExportIds.delete(id);
+                    }
+                });
+                updateConfigExportCount();
+            });
+
+            function closeConfigDialog() {
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('configDialog').style.display = 'none';
+            }
+
+            function saveNames() {
+                document.querySelectorAll('#namesList .name-input').forEach(input => {
+                    const id = parseInt(input.dataset.id);
+                    const ds = state.datasets.find(d => d.id === id);
+                    if (ds) ds.name = input.value.trim();
+                });
+
+                if (state.configDeletedIds.size > 0) {
+                    state.datasets = state.datasets.filter(d => !state.configDeletedIds.has(d.id));
+                    state.datasets.forEach((ds, i) => ds.id = i);
+                    state.activeIndices = state.datasets.map(d => d.id);
+                    state.configDeletedIds.clear();
+                    state.configExportIds.clear();
+                }
+
+                if (state.analysisEnabled) buildLimitsPanel();
+                generateProfileAndRateFilters();
+                initColumnFilters();
+                buildTableHeader();
+                renderTableBody();
+                updateChart();
+                closeConfigDialog();
+            }
+
+            function exportData() {
+                let exportIds = state.configExportIds;
+                const inDialog = document.getElementById('configDialog').style.display === 'block';
+
+                if (!inDialog || exportIds.size === 0) {
+                    exportIds = new Set(state.datasets.map(d => d.id));
+                }
+
+                const nameMap = {};
+                if (inDialog) {
+                    document.querySelectorAll('#namesList .name-input').forEach(input => {
+                        const id = parseInt(input.dataset.id);
+                        nameMap[id] = input.value.trim();
+                    });
+                } else {
+                    state.datasets.forEach(ds => { nameMap[ds.id] = ds.name; });
+                }
+
+                const sourceDatasets = inDialog
+                    ? state.datasets
+                    : state.datasets;
+
+                const versionTag = state.dataFormat;
+                const expBeginMarker = '##Reader_sensitivity_measurement_' + versionTag + ' begin';
+                const expEndMarker = '##Reader_sensitivity_measurement_' + versionTag + ' end';
+
+                const blocks = state.originalContent.split(expBeginMarker);
+                const originalNames = state.originalContent.match(/##name_of_data_set begin\r?\n(.*?)\r?\n##name_of_data_set end/g) || [];
+
+                let output = '';
+                let nameIndex = 0;
+
+                for (let i = 1; i < blocks.length; i++) {
+                    const ds = sourceDatasets.find(d => d.originalName === ((originalNames[i - 1] || '').replace(/##name_of_data_set begin\r?\n|\r?\n##name_of_data_set end/g, '')));
+                    const dsId = ds ? ds.id : -1;
+
+                    if (!exportIds.has(dsId)) {
+                        nameIndex++;
+                        continue;
+                    }
+
+                    const block = blocks[i];
+                    const endIdx = block.indexOf(expEndMarker);
+                    const blockBody = endIdx !== -1 ? block.substring(0, endIdx).trim() : block.trim();
+                    const currentName = nameMap[dsId] || (ds ? ds.name : 'CH_' + (i - 1));
+
+                    output += expBeginMarker + '\n';
+                    output += blockBody + '\n';
+                    output += expEndMarker + '\n';
+                    output += '##name_of_data_set begin\n';
+                    output += currentName + '\n';
+                    output += '##name_of_data_set end\n\n';
+                    nameIndex++;
+                }
+
+                const blob = new Blob([output.trim()], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `data_${Date.now()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            // 导出报告 (沿用原有逻辑)
+            document.getElementById('exportReportBtn').onclick = () => {
+                const choice = prompt("请选择导出类型：\n1. MD报告\n2. CSV表格\n输入1或2");
+                if (choice === '1') exportMDReport();
+                else if (choice === '2') exportCSVData();
+            };
+
+            function exportMDReport() {
+                const lines = [
+                    '# 📊 **Xplore 灵敏度测试数据分析报告**',
+                    `> **生成时间：** ${new Date().toLocaleString('zh-CN')}`,
+                    `> **数据文件：** ${document.getElementById('fileName').textContent || '未知'}`,
+                    ''
+                ];
+                lines.push('## 1. 📈 **数据概况**');
+                lines.push(`- **总曲线数：** ${state.datasets.length}`);
+                lines.push(`- **当前显示曲线数：** ${state.activeIndices.length}`);
+                lines.push('');
+                if (state.analysisEnabled) {
+                    lines.push('## 2. 🎯 **灵敏度合格线 (dBm) 设置**');
+                    const allLimits = [];
+                    document.querySelectorAll('#limitsList .limit-row').forEach(row => {
+                        const key = row.querySelector('label').textContent;
+                        const value = parseFloat(row.querySelector('input[type="number"]').value);
+                        allLimits.push([key, value]);
+                    });
+                    if (allLimits.length > 0) {
+                        lines.push('| 组合 | 合格线 (dBm) |');
+                        lines.push('|------|--------------|');
+                        allLimits.sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => lines.push(`| **${k}** | ${v} |`));
+                    } else lines.push('- 当前未设置任何灵敏度合格线。');
+                    lines.push('');
+
+                    lines.push('## 3. 📊 **统计摘要**');
+                    const displayData = state.datasets.filter(d => state.activeIndices.includes(d.id));
+                    const summary = {};
+                    displayData.forEach(ds => {
+                        const { profile, rate } = parseProfileAndRate(ds.name);
+                        const key = `${profile}-${rate}`;
+                        if (!summary[key]) summary[key] = { total: 0, pass: 0, fail: 0 };
+                        summary[key].total++;
+                        if (ds.stats.max <= getLimitForDataset(ds)) summary[key].pass++;
+                        else summary[key].fail++;
+                    });
+                    lines.push('| 组合 | 总数 | ✅ PASS | ❌ FAIL | 合格率 |');
+                    lines.push('|------|------|---------|---------|--------|');
+                    Object.entries(summary).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => {
+                        lines.push(`| **${k}** | ${v.total} | ${v.pass} | ${v.fail} | **${(v.pass / v.total * 100).toFixed(1)}%** |`);
+                    });
+                    lines.push('');
+                    const totalPass = Object.values(summary).reduce((sum, v) => sum + v.pass, 0);
+                    const totalFail = Object.values(summary).reduce((sum, v) => sum + v.fail, 0);
+                    const total = totalPass + totalFail;
+                    lines.push('### 总体合格率');
+                    lines.push(`- **总测试数：** ${total}`);
+                    lines.push(`- **PASS：** ${totalPass}`);
+                    lines.push(`- **FAIL：** ${totalFail}`);
+                    lines.push(`- **合格率：** **${total > 0 ? (totalPass / total * 100).toFixed(1) : 0}%**`);
+                    lines.push('');
+                }
+
+                if (state.analysisEnabled) {
+                    lines.push('## 4. 📋 **详细数据**');
+                    lines.push('| 名称 | 发射功率(Power Avg) | 回波损耗(RL) | 最小灵敏度(Min Sens) | 最大灵敏度(Max Sens) | 平均灵敏度(Avg Sens) | 灵敏度范围(Range) | 结果 |');
+                    lines.push('|------|---------------------|--------------|---------------------|---------------------|---------------------|------------------|------|');
+                } else {
+                    lines.push('## 3. 📋 **详细数据**');
+                    lines.push('| 名称 | 发射功率(Power Avg) | 回波损耗(RL) | 最小灵敏度(Min Sens) | 最大灵敏度(Max Sens) | 平均灵敏度(Avg Sens) | 灵敏度范围(Range) |');
+                    lines.push('|------|---------------------|--------------|---------------------|---------------------|---------------------|------------------|');
+                }
+
+                const displayData = state.datasets.filter(d => state.activeIndices.includes(d.id));
+                displayData.forEach(ds => {
+                    if (state.analysisEnabled) {
+                        const limit = getLimitForDataset(ds);
+                        const status = ds.stats.max <= limit ? 'PASS' : 'FAIL';
+                        lines.push(`| ${ds.name} | ${ds.stats.powerAvg.toFixed(2)} | ${ds.stats.returnLoss.toFixed(2)} | ${ds.stats.min.toFixed(2)} | ${ds.stats.max.toFixed(2)} | ${ds.stats.avg.toFixed(2)} | ${ds.stats.range.toFixed(2)} | **${status}** |`);
+                    } else {
+                        lines.push(`| ${ds.name} | ${ds.stats.powerAvg.toFixed(2)} | ${ds.stats.returnLoss.toFixed(2)} | ${ds.stats.min.toFixed(2)} | ${ds.stats.max.toFixed(2)} | ${ds.stats.avg.toFixed(2)} | ${ds.stats.range.toFixed(2)} |`);
+                    }
+                });
+
+                const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `analysis_report_${Date.now()}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function exportCSVData() {
+                const hasReturnPhase = state.dataFormat === 'V4';
+                let csvContent = hasReturnPhase
+                    ? "Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s),Return Phase (deg)\n"
+                    : "Dataset Name,Transmit Power (dBm),DSB Receiver Sensitivity(dBm),BLF (kHz),Phase (deg),Return Loss (dB),Time (s)\n";
+                state.datasets.forEach(ds => {
+                    ds.data.forEach(point => {
+                        let row = '"' + ds.name.replace(/"/g, '""') + '",' + point.power + ',' + point.sens + ',' + point.blf + ',' + point.phase + ',' + point.rl + ',' + point.time;
+                        if (hasReturnPhase && point.returnPhase !== undefined) row += ',' + point.returnPhase;
+                        else if (hasReturnPhase) row += ',';
+                        csvContent += row + '\n';
+                    });
+                });
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'data_table_' + Date.now() + '.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            window.updatePlotlyTheme = function () {
+                updateChart();
+            };
+
+            // 所有变量和事件绑定初始化完成后，自动加载嵌入数据
+            if (hasEmbeddedData()) {
+                embeddedToggle.checked = true;
+                loadEmbeddedData();
+            }
+        };
+
+        // 保底初始化：确保即使CDN加载器时序异常，应用仍能正确初始化
+        // 当DOM就绪且Plotly已加载时，如果_appInitialized仍为false，则触发初始化
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.Plotly && !_appInitialized && window.initPlotlyApp) {
+                window.initPlotlyApp();
+            }
+        });
+    </script>
 </body>
+
 </html>
