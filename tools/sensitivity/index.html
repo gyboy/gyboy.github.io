@@ -1475,6 +1475,42 @@
             transform: scale(0.95);
         }
 
+        /* ===== 新增：语言按钮 / 图表顶栏 / 拖拽遮罩 ===== */
+        #langToggle {
+            margin-left: auto;
+            height: 30px; padding: 0 14px;
+            border-radius: 15px; border: 1px solid var(--border-color);
+            background: var(--panel-bg); color: var(--text-main);
+            font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s;
+        }
+        #langToggle:hover {
+            transform: scale(1.05); box-shadow: var(--shadow-md);
+            border-color: var(--primary-color); color: var(--primary-color);
+        }
+        .chart-topbar {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            padding: 0 2px 8px; flex-shrink: 0;
+        }
+        .chart-hint { font-size: 11px; color: var(--text-sub); }
+        .sen-mini-btn {
+            font-family: inherit; border: 1px solid var(--border-color);
+            background: var(--panel-bg); color: var(--text-main);
+            border-radius: 16px; padding: 5px 14px; font-size: 12px; cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+        .sen-mini-btn:hover {
+            background: var(--bg-hover); border-color: var(--primary-color); color: var(--primary-color);
+        }
+        .sen-mini-btn:active { transform: scale(0.96); }
+        #dropOverlay {
+            position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; z-index: 30;
+            display: none; align-items: center; justify-content: center;
+            background: var(--primary-light); border: 2px dashed var(--primary-color);
+            border-radius: var(--radius-md); font-size: 16px; font-weight: 600; color: var(--primary-color);
+            pointer-events: none;
+        }
+
         .embedded-data-badge {
             font-size: 10px;
             padding: 2px 10px;
@@ -1575,22 +1611,23 @@
 
 <body>
     <button id="sealConfigBtn" class="seal-config-btn" style="display:none;" title="锁定当前配置，生成不可篡改的网页副本">🔒 锁定</button>
-    <button id="themeToggle" title="切换主题">☀</button>
+    <button id="themeToggle" title="切换主题" data-sen-title="themeTitle">☀</button>
     <header>
-        <a href="/" style="font-size:13px; color:var(--text-sub); text-decoration:none; flex-shrink:0; padding:4px 10px; border:1px solid var(--border-color); border-radius:16px; transition:all var(--transition-speed);" onmouseover="this.style.color='var(--primary-color)';this.style.borderColor='var(--primary-color)'" onmouseout="this.style.color='var(--text-sub)';this.style.borderColor='var(--border-color)'">← 返回首页</a>
+        <a href="/" style="font-size:13px; color:var(--text-sub); text-decoration:none; flex-shrink:0; padding:4px 10px; border:1px solid var(--border-color); border-radius:16px; transition:all var(--transition-speed);">← 返回首页</a>
         <h1>Xplore 灵敏度测试数据分析工具
             <span id="embeddedBadge" class="embedded-data-badge" style="display:none;">内置数据</span>
         </h1>
         <div class="embedded-toggle-row">
             <div class="embedded-toggle-label">
-                <span>嵌入数据</span>
+                <span data-sen="embedded">嵌入数据</span>
                 <label class="switch">
                     <input type="checkbox" id="embeddedDataToggle">
                     <span class="slider"></span>
                 </label>
-                <span id="embeddedNoDataTip" class="embedded-no-data-tip" style="display:none;">(未配置)</span>
+                <span id="embeddedNoDataTip" class="embedded-no-data-tip" style="display:none;" data-sen="notConfigured">(未配置)</span>
             </div>
         </div>
+        <button id="langToggle" title="Switch language">EN</button>
     </header>
 
     <div class="main-layout">
@@ -1598,10 +1635,10 @@
             <div class="sidebar-header">
                 <div class="file-controls">
                     <div class="file-drop" id="dropZone">
-                        <div style="font-size:16px;">📂 上传 TXT 数据</div>
+                        <div style="font-size:16px;" data-sen="uploadTxt">📂 上传 TXT 数据</div>
                         <input type="file" id="fileInput" accept=".txt">
                     </div>
-                    <div class="config-btn" id="configBtn" style="display:none;">⚙️ 数据配置</div>
+                    <div class="config-btn" id="configBtn" style="display:none;" data-sen="dataConfig">⚙️ 数据配置</div>
                 </div>
                 <div id="fileName" style="margin-top:5px; font-size:10px; color:var(--text-sub); text-align:center;">
                 </div>
@@ -1613,18 +1650,18 @@
 
             <div class="sidebar-content">
                 <div class="panel">
-                    <div class="panel-header">数据过滤</div>
+                    <div class="panel-header" data-sen="filters">数据过滤</div>
                     <div class="panel-body">
-                        <label for="nameFilter">曲线名称过滤</label>
-                        <input type="text" id="nameFilter" placeholder="输入关键字过滤...">
+                        <label for="nameFilter" data-sen="filterName">曲线名称过滤</label>
+                        <input type="text" id="nameFilter" placeholder="输入关键字过滤..." data-sen-placeholder="namePh">
 
                         <!-- 新增：显示列筛选复选框，位于曲线名称过滤下侧 -->
                         <div class="filter-checkbox-row">
                             <input type="checkbox" id="toggleColumnFilter">
-                            <label for="toggleColumnFilter">显示列筛选（在表格列头下方）</label>
+                            <label for="toggleColumnFilter" data-sen="colFilter">显示列筛选（在表格列头下方）</label>
                         </div>
 
-                        <div class="filter-label">Profile和速率组合</div>
+                        <div class="filter-label" data-sen="profileRate">Profile和速率组合</div>
                         <div id="filterValuesList"
                             style="max-height:120px; overflow-y:auto; border:1px solid var(--border-color); padding:6px; margin-top:5px; background:var(--bg-secondary); border-radius:var(--radius-sm);">
                         </div>
@@ -1634,7 +1671,7 @@
                 <div class="panel" id="limitsPanel">
                     <div class="panel-header"
                         style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>分析标准</span>
+                        <span data-sen="limits">分析标准</span>
                         <label class="switch">
                             <input type="checkbox" id="analysisToggle">
                             <span class="slider"></span>
@@ -1644,50 +1681,57 @@
                 </div>
 
                 <div class="panel">
-                    <div class="panel-header">坐标轴与样式</div>
+                    <div class="panel-header" data-sen="axesStyle">坐标轴与样式</div>
                     <div class="panel-body">
-                        <label for="xAxisMode">X轴显示内容</label>
+                        <label for="xAxisMode" data-sen="xAxisContent">X轴显示内容</label>
                         <select id="xAxisMode">
-                            <option value="phase">相位 (Phase)</option>
-                            <option value="power">发射功率 (Power)</option>
-                            <option value="rl">回波损耗 (RL)</option>
+                            <option value="phase" data-sen="modePhase">相位 (Phase)</option>
+                            <option value="power" data-sen="modePower">发射功率 (Power)</option>
+                            <option value="rl" data-sen="modeRL">回波损耗 (RL)</option>
                         </select>
                         <div class="grid-2">
                             <div><label for="xMin">X Min</label><input type="number" id="xMin" value="0"></div>
                             <div><label for="xMax">X Max</label><input type="number" id="xMax" value="360"></div>
                         </div>
                         <div class="grid-2">
-                            <div><label for="xStep">X 步进(Tick)</label><input type="number" id="xStep" value="30"></div>
-                            <div><label for="yStep">Y 步进(Tick)</label><input type="number" id="yStep" value="1"></div>
+                            <div><label for="xStep" data-sen="xTick">X 步进(Tick)</label><input type="number" id="xStep" value="30"></div>
+                            <div><label for="yStep" data-sen="yTick">Y 步进(Tick)</label><input type="number" id="yStep" value="1"></div>
                         </div>
                         <div class="grid-2">
                             <div><label for="yMin">Y Min</label><input type="number" id="yMin" value="-90"></div>
                             <div><label for="yMax">Y Max</label><input type="number" id="yMax" value="-70"></div>
                         </div>
                         <div class="grid-2">
-                            <div><label for="lineWidth">线宽</label><input type="number" id="lineWidth" value="1.5"></div>
-                            <div><label for="markerSize">点大小</label><input type="number" id="markerSize" value="4">
+                            <div><label for="lineWidth" data-sen="lineWidth">线宽</label><input type="number" id="lineWidth" value="1.5"></div>
+                            <div><label for="markerSize" data-sen="markerSize">点大小</label><input type="number" id="markerSize" value="4">
                             </div>
                         </div>
-                        <button class="secondary" id="resetViewBtn">重置视图范围</button>
+                        <button class="secondary" id="resetViewBtn" data-sen="resetView">重置视图范围</button>
                     </div>
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                <button id="exportChartBtn" style="margin-bottom:8px;">📷 导出图片 (PNG)</button>
-                <button class="success" id="exportReportBtn">📝 生成分析报告</button>
+                <button id="exportChartBtn" style="margin-bottom:8px;" data-sen="exportPng">📷 导出图片 (PNG)</button>
+                <button class="success" id="exportReportBtn" data-sen="exportReport">📝 生成分析报告</button>
             </div>
         </aside>
 
         <main class="content-area">
+            <div class="chart-topbar">
+                <span class="chart-hint" data-sen="chartHint">双击表格行高亮曲线 · 滚轮/框选缩放</span>
+                <span style="flex:1;"></span>
+                <button id="showAllBtn" class="sen-mini-btn">👁 <span data-sen="showAll">全部显示</span></button>
+                <button id="hideAllBtn" class="sen-mini-btn">🚫 <span data-sen="hideAll">全部隐藏</span></button>
+            </div>
             <div class="chart-container" id="plotDiv">
                 <div id="welcomeOverlay"
                     style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:var(--text-sub); pointer-events:none;">
                     <div style="font-size:40px; margin-bottom:12px; opacity:0.4;">📊</div>
-                    <h3 style="color:var(--text-main); margin-bottom:8px; font-weight:600;">欢迎使用</h3>
-                    <p style="font-size:13px;">请在左侧侧边栏导入数据开始分析</p>
+                    <h3 style="color:var(--text-main); margin-bottom:8px; font-weight:600;" data-sen="welcomeTitle">欢迎使用</h3>
+                    <p style="font-size:13px;" data-sen="welcomeSub">请在左侧侧边栏导入数据开始分析</p>
                 </div>
+                <div id="dropOverlay" style="display:none;"><span data-sen="dropHere">📄 松开以解析 TXT 文件</span></div>
             </div>
 
             <div class="table-container" id="tableCard" style="display:none;">
@@ -1704,18 +1748,18 @@
 
     <div id="overlay"></div>
     <div id="configDialog">
-        <h2>数据配置</h2>
+        <h2 data-sen="dlgTitle">数据配置</h2>
         <div class="config-toolbar">
             <div class="config-toolbar-left">
-                <label><input type="checkbox" id="configSelectAll" checked> 全选</label>
+                <label><input type="checkbox" id="configSelectAll" checked> <span data-sen="selectAll">全选</span></label>
             </div>
             <span class="config-export-count" id="configExportCount"></span>
         </div>
         <div id="namesList"></div>
         <div class="dialog-buttons">
-            <button id="saveNamesBtn">保存修改</button>
-            <button class="secondary" id="exportModifiedTxtBtn">导出数据</button>
-            <button class="secondary" id="closeDialogBtn">关闭</button>
+            <button id="saveNamesBtn" data-sen="save">保存修改</button>
+            <button class="secondary" id="exportModifiedTxtBtn" data-sen="exportDataBtn">导出数据</button>
+            <button class="secondary" id="closeDialogBtn" data-sen="close">关闭</button>
         </div>
     </div>
 
@@ -1777,6 +1821,113 @@
 
             const COLORS = ['#0052CC', '#00B8D9', '#36B37E', '#FFAB00', '#FF5630', '#6554C0', '#FF7452', '#4C9AFF', '#8777D9', '#57D9A3'];
 
+            /* ===== 新增：中英文切换 ===== */
+            const SEN_STR = {
+                themeTitle: ['切换主题', 'Toggle theme'],
+                uploadTxt: ['📂 上传 TXT 数据', '📂 Upload TXT Data'],
+                dataConfig: ['⚙️ 数据配置', '⚙️ Data Config'],
+                filters: ['数据过滤', 'Filters'],
+                filterName: ['曲线名称过滤', 'Filter by name'],
+                namePh: ['输入关键字过滤...', 'Filter by keyword...'],
+                colFilter: ['显示列筛选（在表格列头下方）', 'Show column filters (below headers)'],
+                profileRate: ['Profile和速率组合', 'Profile & Rate combos'],
+                limits: ['分析标准', 'Pass Limits'],
+                axesStyle: ['坐标轴与样式', 'Axes & Style'],
+                xAxisContent: ['X轴显示内容', 'X axis'],
+                modePhase: ['相位 (Phase)', 'Phase'],
+                modePower: ['发射功率 (Power)', 'Tx Power'],
+                modeRL: ['回波损耗 (RL)', 'Return Loss'],
+                xTick: ['X 步进(Tick)', 'X Tick'],
+                yTick: ['Y 步进(Tick)', 'Y Tick'],
+                lineWidth: ['线宽', 'Line width'],
+                markerSize: ['点大小', 'Marker size'],
+                resetView: ['重置视图范围', 'Reset view range'],
+                exportPng: ['📷 导出图片 (PNG)', '📷 Export chart (PNG)'],
+                exportReport: ['📝 生成分析报告', '📝 Generate report'],
+                welcomeTitle: ['欢迎使用', 'Welcome'],
+                welcomeSub: ['请在左侧侧边栏导入数据开始分析', 'Import data via the sidebar to start'],
+                dlgTitle: ['数据配置', 'Data Config'],
+                selectAll: ['全选', 'Select all'],
+                save: ['保存修改', 'Save'],
+                exportDataBtn: ['导出数据', 'Export TXT'],
+                close: ['关闭', 'Close'],
+                delCurve: ['删除此曲线', 'Delete this trace'],
+                restoreCurve: ['恢复此曲线', 'Restore this trace'],
+                exportCount: ['已选择 %A% / %B% 条曲线用于导出', '%A% / %B% traces selected for export'],
+                noData: ['请先导入数据', 'Import data first'],
+                parseFail: ['数据解析失败，请确认文件格式正确。\n错误信息: ', 'Failed to parse the data.\nError: '],
+                noValid: ['未能识别有效数据，请确认文件包含 ##Reader_sensitivity_measurement_V3 或 V4 标记。',
+                          'No valid data found: the file must contain ##Reader_sensitivity_measurement_V3 or V4 markers.'],
+                readFail: ['文件读取失败，请重试。', 'Failed to read the file. Please retry.'],
+                chooseType: ['请选择导出类型：\n1. MD报告\n2. CSV表格\n输入1或2',
+                             'Choose export type:\n1. MD report\n2. CSV table\nEnter 1 or 2'],
+                chartHint: ['双击表格行高亮曲线 · 滚轮/框选缩放', 'Double-click a row to highlight · scroll/drag to zoom'],
+                showAll: ['全部显示', 'Show all'],
+                hideAll: ['全部隐藏', 'Hide all'],
+                dropHere: ['📄 松开以解析 TXT 文件', '📄 Drop to parse the TXT file'],
+                embeddedLoaded: ['📂 内置数据已加载 (上传已禁用)', '📂 Embedded data loaded (upload disabled)'],
+                embedded: ['嵌入数据', 'Embedded data'],
+                notConfigured: ['(未配置)', '(not configured)'],
+                embeddedInfo1: ['内置数据已加载', 'Embedded data loaded'],
+                embeddedInfo2: ['此页面包含预置的测试数据，您仍可上传新文件覆盖当前数据。',
+                                'This page contains preset test data; you can still upload a new file to replace it.'],
+                colName: ['数据集名称(Name)', 'Name'],
+                colPower: ['发射功率(Power Avg)', 'Tx Power (Avg)'],
+                colRL: ['回波损耗(RL)', 'Return Loss'],
+                colMin: ['最小灵敏度(Min Sens)', 'Min Sens'],
+                colMax: ['最大灵敏度(Max Sens)', 'Max Sens'],
+                colAvg: ['平均灵敏度(Avg Sens)', 'Avg Sens'],
+                colRange: ['灵敏度范围(Range)', 'Range'],
+                colStatus: ['测试结果(Status)', 'Status'],
+                repTitle: ['Xplore 灵敏度测试数据分析报告', 'Xplore Sensitivity Test Analysis Report'],
+                repTime: ['生成时间', 'Generated at'],
+                repFile: ['数据文件', 'Data file'],
+                repOverview: ['数据概况', 'Overview'],
+                repTotal: ['总曲线数', 'Total traces'],
+                repShown: ['当前显示曲线数', 'Shown traces'],
+                repLimitsSec: ['灵敏度合格线 (dBm) 设置', 'Sensitivity limits (dBm)'],
+                repCombo: ['组合', 'Combo'],
+                repLimitCol: ['合格线 (dBm)', 'Limit (dBm)'],
+                repNoneSet: ['当前未设置任何灵敏度合格线。', 'No limits configured.'],
+                repSummarySec: ['统计摘要', 'PASS/FAIL summary'],
+                repTotalCol: ['总数', 'Total'],
+                repRateCol: ['合格率', 'Pass rate'],
+                repOverall: ['总体合格率', 'Overall pass rate'],
+                repTotalTests: ['总测试数', 'Total tests'],
+                repDetail: ['详细数据', 'Detailed data'],
+                repResult: ['结果', 'Result']
+            };
+            function senLang() { return localStorage.getItem('sen-lang') === 'en' ? 'en' : 'zh'; }
+            function senT(key) {
+                const e = SEN_STR[key];
+                if (!e) return key;
+                return senLang() === 'en' ? (e[1] || e[0]) : e[0];
+            }
+            function welcomeHtml() {
+                return '<div style="font-size:40px; margin-bottom:12px; opacity:0.4;">📊</div>' +
+                    '<h3 style="color:var(--text-main); margin-bottom:8px; font-weight:600;">' + senT('welcomeTitle') + '</h3>' +
+                    '<p style="font-size:13px;">' + senT('welcomeSub') + '</p>';
+            }
+            function applySenLang() {
+                document.querySelectorAll('[data-sen]').forEach(el => { el.textContent = senT(el.getAttribute('data-sen')); });
+                document.querySelectorAll('[data-sen-placeholder]').forEach(el => { el.placeholder = senT(el.getAttribute('data-sen-placeholder')); });
+                document.querySelectorAll('[data-sen-title]').forEach(el => { el.title = senT(el.getAttribute('data-sen-title')); });
+                const lt = document.getElementById('langToggle');
+                if (lt) {
+                    lt.textContent = senLang() === 'zh' ? 'EN' : '中';
+                    lt.title = senLang() === 'zh' ? 'Switch to English' : '切换到中文';
+                }
+                buildTableHeader();
+                renderTableBody();
+                generateProfileAndRateFilters();
+                if (state.analysisEnabled) buildLimitsPanel();
+                updateConfigExportCount();
+                if (state.datasets.length === 0 && !state.usingEmbeddedData) {
+                    const wo = document.getElementById('welcomeOverlay');
+                    if (wo && wo.style.display !== 'none') wo.innerHTML = welcomeHtml();
+                }
+            }
+
             function getCSSVar(name) {
                 return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
             }
@@ -1795,18 +1946,18 @@
 
             // ---------- 列配置 ----------
             const baseColumns = [
-                { key: 'name', label: '数据集名称(Name)', type: 'text' },
-                { key: 'powerAvg', label: '发射功率(Power Avg)', type: 'number' },
-                { key: 'returnLoss', label: '回波损耗(RL)', type: 'number' },
-                { key: 'min', label: '最小灵敏度(Min Sens)', type: 'number' },
-                { key: 'max', label: '最大灵敏度(Max Sens)', type: 'number' },
-                { key: 'avg', label: '平均灵敏度(Avg Sens)', type: 'number' },
-                { key: 'range', label: '灵敏度范围(Range)', type: 'number' }
+                { key: 'name', sen: 'colName', type: 'text' },
+                { key: 'powerAvg', sen: 'colPower', type: 'number' },
+                { key: 'returnLoss', sen: 'colRL', type: 'number' },
+                { key: 'min', sen: 'colMin', type: 'number' },
+                { key: 'max', sen: 'colMax', type: 'number' },
+                { key: 'avg', sen: 'colAvg', type: 'number' },
+                { key: 'range', sen: 'colRange', type: 'number' }
             ];
 
             function getCurrentColumns() {
                 if (state.analysisEnabled) {
-                    return [...baseColumns, { key: 'status', label: '测试结果(Status)', type: 'text' }];
+                    return [...baseColumns, { key: 'status', sen: 'colStatus', type: 'text' }];
                 }
                 return baseColumns;
             }
@@ -1951,9 +2102,7 @@
                     document.getElementById('embeddedDataInfo').style.display = 'none';
                     document.getElementById('fileName').textContent = '';
                     document.getElementById('welcomeOverlay').style.display = '';
-                    document.getElementById('welcomeOverlay').innerHTML =
-                        '<h3 style="color:var(--text-main); margin-bottom:8px;">欢迎使用</h3>' +
-                        '<p>请在左侧侧边栏导入数据开始分析</p>';
+                    document.getElementById('welcomeOverlay').innerHTML = welcomeHtml();
                     document.getElementById('tableCard').style.display = 'none';
                     document.getElementById('configBtn').style.display = 'none';
                     document.getElementById('filterValuesList').innerHTML = '';
@@ -2030,7 +2179,7 @@
                 if (EMBEDDED_DATA_CONFIG.disableFileUpload) {
                     document.getElementById('dropZone').classList.add('disabled');
                     document.getElementById('fileInput').disabled = true;
-                    document.getElementById('dropZone').querySelector('div').textContent = '📂 内置数据已加载 (上传已禁用)';
+                    document.getElementById('dropZone').querySelector('div').textContent = senT('embeddedLoaded');
                     // 禁用嵌入数据开关，防止用户通过关闭开关恢复上传
                     embeddedToggle.disabled = true;
                 }
@@ -2092,11 +2241,11 @@
                         parseData(state.originalContent);
                     } catch (err) {
                         console.error('解析数据出错:', err);
-                        alert('数据解析失败，请确认文件格式正确。\n错误信息: ' + err.message);
+                        alert(senT('parseFail') + err.message);
                         return;
                     }
                     if (state.datasets.length === 0) {
-                        alert('未能识别有效数据，请确认文件包含 ##Reader_sensitivity_measurement_V3 或 V4 标记。');
+                        alert(senT('noValid'));
                         return;
                     }
                     state.activeIndices = state.datasets.map(d => d.id);
@@ -2111,7 +2260,7 @@
                     updateChart();
                 };
                 reader.onerror = () => {
-                    alert('文件读取失败，请重试。');
+                    alert(senT('readFail'));
                 };
                 // 显式指定UTF-8编码，避免部分系统默认GBK导致乱码
                 reader.readAsText(file, 'UTF-8');
@@ -2176,7 +2325,7 @@
                     // 排序标题区
                     const titleSpan = document.createElement('span');
                     titleSpan.className = 'th-content';
-                    titleSpan.innerHTML = `<span style="flex:1;">${col.label}</span>`;
+                    titleSpan.innerHTML = `<span style="flex:1;">${senT(col.sen)}</span>`;
                     titleSpan.addEventListener('click', (e) => {
                         e.stopPropagation();
                         if (state.sort.key === col.key) {
@@ -2480,6 +2629,9 @@
                     });
                 }
 
+                /* 新增：缩放后保留当前视图范围并细化刻度；未缩放时用输入框范围 */
+                const xRange = viewRange.x || [+document.getElementById('xMin').value, +document.getElementById('xMax').value];
+                const yRange = viewRange.y || [+document.getElementById('yMin').value, +document.getElementById('yMax').value];
                 const layout = {
                     autosize: true,
                     paper_bgcolor: tc.paperBg,
@@ -2489,15 +2641,17 @@
                     xaxis: {
                         title: state.xAxisMode.toUpperCase(),
                         titlestandoff: 10,
-                        range: [+document.getElementById('xMin').value, +document.getElementById('xMax').value],
-                        dtick: +document.getElementById('xStep').value > 0 ? +document.getElementById('xStep').value : null,
+                        range: xRange,
+                        dtick: viewRange.x ? niceStep(xRange[1] - xRange[0]) :
+                            (+document.getElementById('xStep').value > 0 ? +document.getElementById('xStep').value : null),
                         gridcolor: tc.gridColor,
                         zerolinecolor: tc.gridColor
                     },
                     yaxis: {
                         title: 'Sensitivity (dBm)',
-                        range: [+document.getElementById('yMin').value, +document.getElementById('yMax').value],
-                        dtick: +document.getElementById('yStep').value > 0 ? +document.getElementById('yStep').value : null,
+                        range: yRange,
+                        dtick: viewRange.y ? niceStep(yRange[1] - yRange[0]) :
+                            (+document.getElementById('yStep').value > 0 ? +document.getElementById('yStep').value : null),
                         gridcolor: tc.gridColor,
                         zerolinecolor: tc.gridColor
                     },
@@ -2511,7 +2665,36 @@
                     // 禁用可能触发iframe/跨源的功能，避免file://协议下报错
                     modeBarButtonsToRemove: ['sendDataToCloud'],
                     scrollZoom: true
-                });
+                }).then(attachRelayout); /* react 会清除 .on 处理器，重渲染后重新绑定 */
+            }
+
+            /* ===== 新增：缩放状态记录（只记录不重绘，避免任何反馈循环） ===== */
+            const viewRange = { x: null, y: null };
+            function niceStep(span) {
+                if (!isFinite(span) || span <= 0) return null;
+                const raw = span / 6.5;
+                const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+                const seq = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+                for (let i = 0; i < seq.length; i++) if (raw <= seq[i] * pow) return seq[i] * pow;
+                return 10 * pow;
+            }
+            function onRelayout(ed) {
+                function rangeOf(axis) {
+                    if (ed[axis] && ed[axis].range) return ed[axis].range.slice();
+                    const key = axis + '.range';
+                    if (ed[key] && ed[key].length === 2) return ed[key].slice();
+                    const lo = ed[axis + '.range[0]'], hi = ed[axis + '.range[1]'];
+                    return (lo !== undefined && hi !== undefined) ? [lo, hi] : null;
+                }
+                const xr = rangeOf('xaxis');
+                if (xr) viewRange.x = xr;
+                const yr = rangeOf('yaxis');
+                if (yr) viewRange.y = yr;
+                /* 仅记录范围：显示/隐藏、切换语言等重渲染时会沿用缩放视图 */
+            }
+            function attachRelayout() {
+                const gd = document.getElementById('plotDiv');
+                if (gd && gd.on) gd.on('plotly_relayout', onRelayout);
             }
 
             // 事件绑定
@@ -2526,6 +2709,8 @@
 
             ['xMin', 'xMax', 'xStep', 'yMin', 'yMax', 'yStep', 'lineWidth', 'markerSize'].forEach(id => {
                 document.getElementById(id).onchange = () => {
+                    if (id === 'xMin' || id === 'xMax') viewRange.x = null;
+                    if (id === 'yMin' || id === 'yMax') viewRange.y = null;
                     renderTableBody();
                     updateChart();
                 };
@@ -2535,6 +2720,7 @@
                 document.getElementById('yMin').value = -90;
                 document.getElementById('yMax').value = -70;
                 document.getElementById('yStep').value = 2;
+                viewRange.x = null; viewRange.y = null;
                 updateChart();
             };
 
@@ -2544,11 +2730,12 @@
             function updateConfigExportCount() {
                 const count = state.configExportIds.size;
                 const total = state.datasets.length;
-                document.getElementById('configExportCount').textContent = `已选择 ${count} / ${total} 条曲线用于导出`;
+                document.getElementById('configExportCount').textContent =
+                    senT('exportCount').replace('%A%', count).replace('%B%', total);
             }
 
             function openConfigDialog() {
-                if (state.datasets.length === 0) return alert('请先导入数据');
+                if (state.datasets.length === 0) return alert(senT('noData'));
                 state.configDeletedIds = new Set();
                 state.configExportIds = new Set(state.datasets.map(d => d.id));
 
@@ -2588,7 +2775,7 @@
                     actionBtn.type = 'button';
                     actionBtn.className = 'row-action-btn btn-delete';
                     actionBtn.textContent = '✕';
-                    actionBtn.title = '删除此曲线';
+                    actionBtn.title = senT('delCurve');
                     actionBtn.addEventListener('click', () => {
                         const isDeleted = state.configDeletedIds.has(ds.id);
                         if (isDeleted) {
@@ -2599,7 +2786,7 @@
                             checkbox.disabled = false;
                             actionBtn.className = 'row-action-btn btn-delete';
                             actionBtn.textContent = '✕';
-                            actionBtn.title = '删除此曲线';
+                            actionBtn.title = senT('delCurve');
                             nameInput.disabled = false;
                         } else {
                             state.configDeletedIds.add(ds.id);
@@ -2609,7 +2796,7 @@
                             checkbox.disabled = true;
                             actionBtn.className = 'row-action-btn btn-restore';
                             actionBtn.textContent = '↩';
-                            actionBtn.title = '恢复此曲线';
+                            actionBtn.title = senT('restoreCurve');
                             nameInput.disabled = false;
                         }
                         updateConfigExportCount();
@@ -2745,24 +2932,24 @@
 
             // 导出报告 (沿用原有逻辑)
             document.getElementById('exportReportBtn').onclick = () => {
-                const choice = prompt("请选择导出类型：\n1. MD报告\n2. CSV表格\n输入1或2");
+                const choice = prompt(senT('chooseType'));
                 if (choice === '1') exportMDReport();
                 else if (choice === '2') exportCSVData();
             };
 
             function exportMDReport() {
                 const lines = [
-                    '# 📊 **Xplore 灵敏度测试数据分析报告**',
-                    `> **生成时间：** ${new Date().toLocaleString('zh-CN')}`,
-                    `> **数据文件：** ${document.getElementById('fileName').textContent || '未知'}`,
+                    '# 📊 **' + senT('repTitle') + '**',
+                    `> **${senT('repTime')}：** ${new Date().toLocaleString(senLang() === 'zh' ? 'zh-CN' : 'en-US')}`,
+                    `> **${senT('repFile')}：** ${document.getElementById('fileName').textContent || '-'}`,
                     ''
                 ];
-                lines.push('## 1. 📈 **数据概况**');
-                lines.push(`- **总曲线数：** ${state.datasets.length}`);
-                lines.push(`- **当前显示曲线数：** ${state.activeIndices.length}`);
+                lines.push('## 1. 📈 **' + senT('repOverview') + '**');
+                lines.push(`- **${senT('repTotal')}：** ${state.datasets.length}`);
+                lines.push(`- **${senT('repShown')}：** ${state.activeIndices.length}`);
                 lines.push('');
                 if (state.analysisEnabled) {
-                    lines.push('## 2. 🎯 **灵敏度合格线 (dBm) 设置**');
+                    lines.push('## 2. 🎯 **' + senT('repLimitsSec') + '**');
                     const allLimits = [];
                     document.querySelectorAll('#limitsList .limit-row').forEach(row => {
                         const key = row.querySelector('label').textContent;
@@ -2770,13 +2957,13 @@
                         allLimits.push([key, value]);
                     });
                     if (allLimits.length > 0) {
-                        lines.push('| 组合 | 合格线 (dBm) |');
+                        lines.push('| ' + senT('repCombo') + ' | ' + senT('repLimitCol') + ' |');
                         lines.push('|------|--------------|');
                         allLimits.sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => lines.push(`| **${k}** | ${v} |`));
-                    } else lines.push('- 当前未设置任何灵敏度合格线。');
+                    } else lines.push('- ' + senT('repNoneSet'));
                     lines.push('');
 
-                    lines.push('## 3. 📊 **统计摘要**');
+                    lines.push('## 3. 📊 **' + senT('repSummarySec') + '**');
                     const displayData = state.datasets.filter(d => state.activeIndices.includes(d.id));
                     const summary = {};
                     displayData.forEach(ds => {
@@ -2787,7 +2974,7 @@
                         if (ds.stats.max <= getLimitForDataset(ds)) summary[key].pass++;
                         else summary[key].fail++;
                     });
-                    lines.push('| 组合 | 总数 | ✅ PASS | ❌ FAIL | 合格率 |');
+                    lines.push('| ' + senT('repCombo') + ' | ' + senT('repTotalCol') + ' | ✅ PASS | ❌ FAIL | ' + senT('repRateCol') + ' |');
                     lines.push('|------|------|---------|---------|--------|');
                     Object.entries(summary).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => {
                         lines.push(`| **${k}** | ${v.total} | ${v.pass} | ${v.fail} | **${(v.pass / v.total * 100).toFixed(1)}%** |`);
@@ -2796,20 +2983,20 @@
                     const totalPass = Object.values(summary).reduce((sum, v) => sum + v.pass, 0);
                     const totalFail = Object.values(summary).reduce((sum, v) => sum + v.fail, 0);
                     const total = totalPass + totalFail;
-                    lines.push('### 总体合格率');
-                    lines.push(`- **总测试数：** ${total}`);
+                    lines.push('### ' + senT('repOverall'));
+                    lines.push(`- **${senT('repTotalTests')}：** ${total}`);
                     lines.push(`- **PASS：** ${totalPass}`);
                     lines.push(`- **FAIL：** ${totalFail}`);
-                    lines.push(`- **合格率：** **${total > 0 ? (totalPass / total * 100).toFixed(1) : 0}%**`);
+                    lines.push(`- **${senT('repRateCol')}：** **${total > 0 ? (totalPass / total * 100).toFixed(1) : 0}%**`);
                     lines.push('');
                 }
 
                 if (state.analysisEnabled) {
-                    lines.push('## 4. 📋 **详细数据**');
+                    lines.push('## 4. 📋 **' + senT('repDetail') + '**');
                     lines.push('| 名称 | 发射功率(Power Avg) | 回波损耗(RL) | 最小灵敏度(Min Sens) | 最大灵敏度(Max Sens) | 平均灵敏度(Avg Sens) | 灵敏度范围(Range) | 结果 |');
                     lines.push('|------|---------------------|--------------|---------------------|---------------------|---------------------|------------------|------|');
                 } else {
-                    lines.push('## 3. 📋 **详细数据**');
+                    lines.push('## 3. 📋 **' + senT('repDetail') + '**');
                     lines.push('| 名称 | 发射功率(Power Avg) | 回波损耗(RL) | 最小灵敏度(Min Sens) | 最大灵敏度(Max Sens) | 平均灵敏度(Avg Sens) | 灵敏度范围(Range) |');
                     lines.push('|------|---------------------|--------------|---------------------|---------------------|---------------------|------------------|');
                 }
@@ -2859,6 +3046,45 @@
             window.updatePlotlyTheme = function () {
                 updateChart();
             };
+
+            /* ===== 新增：全部显示 / 全部隐藏 ===== */
+            function setAllCombosVisible(visible) {
+                document.querySelectorAll('#filterValuesList input[type="checkbox"]').forEach(cb => { cb.checked = visible; });
+                updateActiveDatasets();
+                renderTableBody();
+                updateChart(); /* viewRange 未清除 → 保持当前缩放视图 */
+            }
+            document.getElementById('showAllBtn').onclick = () => setAllCombosVisible(true);
+            document.getElementById('hideAllBtn').onclick = () => setAllCombosVisible(false);
+
+            /* ===== 新增：拖拽文件到图表区域自动解析 ===== */
+            const chartArea = document.querySelector('.content-area');
+            let dragDepth = 0;
+            ['dragenter', 'dragover'].forEach(ev => chartArea.addEventListener(ev, e => {
+                e.preventDefault();
+                if (ev === 'dragenter') dragDepth++;
+                document.getElementById('dropOverlay').style.display = 'flex';
+            }));
+            ['dragleave', 'drop'].forEach(ev => chartArea.addEventListener(ev, e => {
+                e.preventDefault();
+                dragDepth = Math.max(0, dragDepth - 1);
+                if (dragDepth === 0) document.getElementById('dropOverlay').style.display = 'none';
+            }));
+            chartArea.addEventListener('drop', e => {
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            });
+            document.addEventListener('dragover', e => e.preventDefault());
+            document.addEventListener('drop', e => {
+                e.preventDefault();
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            });
+
+            /* ===== 新增：中英切换按钮 ===== */
+            document.getElementById('langToggle').onclick = () => {
+                localStorage.setItem('sen-lang', senLang() === 'zh' ? 'en' : 'zh');
+                applySenLang();
+            };
+            applySenLang();
 
             // 所有变量和事件绑定初始化完成后，自动加载嵌入数据
             if (hasEmbeddedData()) {
