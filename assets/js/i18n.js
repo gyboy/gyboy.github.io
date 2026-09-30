@@ -199,6 +199,7 @@ window.I18N_DICT = {
   'sen.modePhase':{ zh: '相位', en: 'Phase' },
   'sen.modePower':{ zh: '功率', en: 'Power' },
   'sen.modeBlf':  { zh: 'BLF', en: 'BLF' },
+  'sen.modeRl':   { zh: '回波损耗', en: 'Return loss' },
   'sen.lineWidth':{ zh: '线宽', en: 'Line width' },
   'sen.marker':   { zh: '点大小', en: 'Marker size' },
   'sen.resetY':   { zh: '自适应 Y 轴', en: 'Fit Y axis' },

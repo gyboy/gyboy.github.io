@@ -31,13 +31,21 @@
     .sen-toolbar .spacer { flex: 1; }
     .sen-btn {
       font-family: inherit; border: 1px solid var(--border); background: var(--surface);
-      color: var(--text); border-radius: 10px; padding: 8px 14px; font-size: 0.88rem;
-      cursor: pointer; transition: border-color 0.15s, transform 0.15s;
+      color: var(--text); border-radius: 20px; padding: 8px 18px; font-size: 0.86rem; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s, box-shadow 0.2s;
     }
-    .sen-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
-    .sen-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600; }
-    .sen-btn.small { padding: 5px 10px; font-size: 0.78rem; border-radius: 8px; }
-    .sen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .sen-btn:hover { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+    .sen-btn:active { transform: scale(0.97); }
+    .sen-btn.primary {
+      background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    }
+    .sen-btn.primary:hover { background: var(--accent); color: var(--accent-contrast); filter: brightness(1.1); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+    .sen-btn.small { padding: 5px 14px; font-size: 0.78rem; }
+    .sen-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .sen-btn:disabled:hover { background: var(--surface); border-color: var(--border); color: var(--text); }
+    .sen-btn.primary:disabled:hover { background: var(--accent); color: var(--accent-contrast); }
 
     .sen-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: stretch; }
     .sen-grid > .panel { display: flex; flex-direction: column; overflow: hidden; min-height: 620px; }
@@ -69,14 +77,38 @@
     .sen-input, .sen-input input[type="text"], .sen-input input[type="number"] {
       width: 100%; padding: 7px 10px; font-size: 0.86rem; font-family: inherit;
       color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .sen-input input:focus, .sen-input select:focus { border-color: var(--accent); }
-    .sen-input select { font-family: inherit; cursor: pointer; }
+    .sen-input input:focus, .sen-input select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+    .sen-input select {
+      font-family: inherit; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      padding-right: 32px;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center; background-size: 11px;
+    }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
     .grid-2 label { display: block; font-size: 0.72rem; color: var(--text-2); margin-bottom: 3px; }
     .grid-2 input { width: 100%; padding: 6px 8px; font-size: 0.84rem; font-family: ui-monospace, Consolas, monospace;
-      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; outline: none; }
-    .grid-2 input:focus { border-color: var(--accent); }
+      color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 7px; outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s; }
+    .grid-2 input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+
+    /* 开关（分析标准） */
+    .switch { position: relative; display: inline-block; width: 38px; height: 21px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; inset: 0; background: var(--border); border-radius: 20px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .switch .slider::before {
+      content: ''; position: absolute; width: 15px; height: 15px; left: 3px; top: 3px;
+      background: var(--surface); border-radius: 50%; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    .switch input:checked + .slider { background: var(--accent); }
+    .switch input:checked + .slider::before { transform: translateX(17px); }
+    .limit-row input[type="checkbox"], .chk-list input, .chk-row input { width: 15px; height: 15px; }
     .limit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; }
     .limit-row label { flex: 1; font-family: ui-monospace, Consolas, monospace; }
     .limit-row input[type="number"] { width: 76px; padding: 5px 7px; font-size: 0.8rem;
@@ -87,13 +119,30 @@
 
     #sen-plot { width: 100%; min-height: 430px; }
 
+    /* Plotly 模式栏：深浅主题下图标均清晰可见（修复悬停变黑不可见） */
+    #sen-plot .modebar {
+      background: rgba(127, 127, 127, 0.09) !important;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    #sen-plot .modebar:hover { background: rgba(127, 127, 127, 0.16) !important; }
+    #sen-plot .modebar-btn path { fill: var(--text-2) !important; transition: fill 0.15s; }
+    #sen-plot .modebar-btn:hover path,
+    #sen-plot .modebar-btn.active path { fill: var(--accent) !important; }
+
     .tbl-wrap { overflow: auto; flex: 1; min-height: 0; }
     .sen-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    .sen-table th, .sen-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: right; }
+    .sen-table th, .sen-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: right;
+    }
     .sen-table th {
-      position: sticky; top: 0; z-index: 2; background: var(--bg); text-align: left;
+      position: sticky; top: 0; z-index: 2; background: var(--bg);
       font-weight: 600; color: var(--text-2); font-size: 0.75rem; cursor: pointer; user-select: none;
     }
+    .sen-table th[data-col="name"], .sen-table th[data-col="status"] { text-align: left; }
+    .sen-table th::after { content: ''; display: inline-block; width: 0.95em; }
+    .sen-table th.sort-asc::after { content: '▲'; color: var(--accent); }
+    .sen-table th.sort-desc::after { content: '▼'; color: var(--accent); }
     .sen-table th .filter-row { display: none; flex-direction: row; gap: 4px; margin-top: 5px; cursor: default; }
     .sen-table th.filter-open .filter-row { display: flex; }
     .sen-table th .filter-row input {
@@ -102,8 +151,6 @@
     }
     .sen-table th .filter-row input:focus { border-color: var(--accent); }
     .sen-table th .filter-row .range-min, .sen-table th .filter-row .range-max { width: 46%; }
-    .sen-table th.sort-asc::after { content: ' ▲'; color: var(--accent); }
-    .sen-table th.sort-desc::after { content: ' ▼'; color: var(--accent); }
     .sen-table td { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
     .sen-table td.name-cell { text-align: left; font-family: inherit; font-weight: 600; }
     .sen-table tr.active-row { background: var(--accent-weak); }
@@ -214,10 +261,10 @@
           <div class="tool-sec">
             <div class="panel-head" style="border:none; padding: 0 0 6px; justify-content: space-between;">
               <h3 style="margin:0;" data-i18n="sen.analysis">分析标准</h3>
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:0.8rem;color:var(--text-2);">
-                <input type="checkbox" id="analysis-toggle" style="accent-color:var(--accent);">
+              <span style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:0.8rem;color:var(--text-2);">
+                <span class="switch"><input type="checkbox" id="analysis-toggle"><span class="slider"></span></span>
                 <span data-i18n="sen.col.status">测试结果</span>
-              </label>
+              </span>
             </div>
             <div id="limits-list"></div>
           </div>
@@ -229,6 +276,7 @@
                 <option value="phase" selected data-i18n="sen.modePhase">相位</option>
                 <option value="power" data-i18n="sen.modePower">功率</option>
                 <option value="blf" data-i18n="sen.modeBlf">BLF</option>
+                <option value="rl" data-i18n="sen.modeRl">回波损耗</option>
               </select>
             </div>
             <div class="grid-2">
@@ -739,25 +787,46 @@
           hovermode: 'closest',
           dragmode: 'pan'
         };
-        const xr = applyRange($('x-min').value, $('x-max').value, $('x-step').value);
-        const yr = applyRange($('y-min').value, $('y-max').value, $('y-step').value);
-        if (xr.range) layout.xaxis.range = xr.range;
-        if (xr.dtick) layout.xaxis.dtick = xr.dtick;
-        if (yr.range) layout.yaxis.range = yr.range;
-        if (yr.dtick) layout.yaxis.dtick = yr.dtick;
+        /* 手动模式：输入框的 Min/Max 驱动范围；自动模式（缩放后）：保留缩放范围并按缩放级别细化刻度 */
+        if (manualTick.x) {
+          const xr = numRange($('x-min').value, $('x-max').value);
+          if (xr) { layout.xaxis.range = xr; lastRange.x = xr; }
+          const xs = parseFloat($('x-step').value);
+          if (xs > 0) layout.xaxis.dtick = xs;
+        } else if (lastRange.x) {
+          layout.xaxis.range = lastRange.x;
+          const st = niceStep(lastRange.x[1] - lastRange.x[0]);
+          if (st) layout.xaxis.dtick = st;
+        }
+        if (manualTick.y) {
+          const yr = numRange($('y-min').value, $('y-max').value);
+          if (yr) { layout.yaxis.range = yr; lastRange.y = yr; }
+          const ys = parseFloat($('y-step').value);
+          if (ys > 0) layout.yaxis.dtick = ys;
+        } else if (lastRange.y) {
+          layout.yaxis.range = lastRange.y;
+          const st = niceStep(lastRange.y[1] - lastRange.y[0]);
+          if (st) layout.yaxis.dtick = st;
+        }
         Plotly.react('sen-plot', traces.length ? traces : [{ x: [], y: [], mode: 'lines' }], layout, {
           responsive: true, displaylogo: false,
           modeBarButtonsToRemove: ['sendDataToCloud', 'lasso2d', 'select2d'],
           scrollZoom: true,
           toImageButtonOptions: { format: 'png', filename: 'sensitivity_analysis', scale: 2 }
-        });
+        }).then(bindRelayout); /* react 会清除 .on 处理器，重渲染后重新绑定 */
       }
-      function applyRange(minS, maxS, stepS) {
-        const mn = parseFloat(minS), mx = parseFloat(maxS), st = parseFloat(stepS);
-        const out = {};
-        if (isFinite(mn) && isFinite(mx) && mn < mx) out.range = [mn, mx];
-        if (isFinite(st) && st > 0) out.dtick = st;
-        return out;
+      function numRange(minS, maxS) {
+        const mn = parseFloat(minS), mx = parseFloat(maxS);
+        return isFinite(mn) && isFinite(mx) && mn < mx ? [mn, mx] : null;
+      }
+      /* 缩放后的优化的刻度步进：约 6~7 个主刻度，步进取 1/1.5/2/2.5/3/4/5/6/8/10 序列 */
+      function niceStep(span) {
+        if (!isFinite(span) || span <= 0) return null;
+        const raw = span / 6.5;
+        const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+        const seq = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+        for (let i = 0; i < seq.length; i++) if (raw <= seq[i] * pow) return seq[i] * pow;
+        return 10 * pow;
       }
 
       /* ============ 导出 ============ */
@@ -994,16 +1063,26 @@
 
         $('x-axis-mode').addEventListener('change', e => {
           state.xMode = e.target.value;
-          const presets = { phase: [0, 360, 45], power: [27, 30, 0.5], blf: [0, 30, 5] };
+          const presets = { phase: [0, 360, 45], power: [27, 30, 0.5], blf: [0, 30, 5], rl: [15, 25, 1] };
           const p = presets[state.xMode];
           $('x-min').value = p[0]; $('x-max').value = p[1]; $('x-step').value = p[2];
+          manualTick.x = true;
           updateChart();
         });
-        ['x-min', 'x-max', 'x-step', 'y-min', 'y-max', 'y-step', 'line-width', 'marker-size'].forEach(id => {
+        ['x-min', 'x-max'].forEach(id => {
+          $(id).addEventListener('input', function () { manualTick.x = true; renderTableBody(); updateChart(); });
+        });
+        ['y-min', 'y-max'].forEach(id => {
+          $(id).addEventListener('input', function () { manualTick.y = true; renderTableBody(); updateChart(); });
+        });
+        $('x-step').addEventListener('input', function () { manualTick.x = true; renderTableBody(); updateChart(); });
+        $('y-step').addEventListener('input', function () { manualTick.y = true; renderTableBody(); updateChart(); });
+        ['line-width', 'marker-size'].forEach(id => {
           $(id).addEventListener('input', () => { renderTableBody(); updateChart(); });
         });
         $('btn-reset-y').addEventListener('click', () => {
           $('y-min').value = -90; $('y-max').value = -70; $('y-step').value = 2;
+          manualTick.y = true;
           updateChart();
         });
         $('btn-export-png').addEventListener('click', () => {
@@ -1042,13 +1121,35 @@
       }
 
       var plotDiv = null, plotReady = false;
+      /* 刻度状态：manualTick 为真时用输入框的 Min/Max/Tick；缩放/平移后转自动（Plotly 按缩放级别细化刻度） */
+      var manualTick = { x: true, y: true };
+      var lastRange = { x: null, y: null };
+      function relayoutHandler(ed) {
+        function rangeOf(axis) {
+          if (ed[axis] && ed[axis].range) return ed[axis].range.slice();
+          const key = axis + '.range';
+          if (ed[key] && ed[key].length === 2) return ed[key].slice();
+          const lo = ed[axis + '.range[0]'], hi = ed[axis + '.range[1]'];
+          return (lo !== undefined && hi !== undefined) ? [lo, hi] : null;
+        }
+        var touched = false;
+        const xr = rangeOf('xaxis');
+        if (xr) { lastRange.x = xr; manualTick.x = false; touched = true; }
+        const yr = rangeOf('yaxis');
+        if (yr) { lastRange.y = yr; manualTick.y = false; touched = true; }
+        if (touched) updateChart(); /* 重渲染：保留缩放范围，刻度按缩放级别自动细化 */
+      }
+      /* Plotly.react 会清除 .on() 处理器，因此每次重渲染后重新绑定 */
+      function bindRelayout() {
+        if (plotDiv && plotDiv.on) plotDiv.on('plotly_relayout', relayoutHandler);
+      }
       function ensurePlot() {
         if (!plotDiv) {
           plotDiv = $('sen-plot');
           Plotly.newPlot(plotDiv, [{ x: [], y: [], mode: 'lines' }], {
             paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
             margin: { t: 30, r: 190, b: 60, l: 60 }, font: { family: 'inherit' }
-          }, { responsive: true, displaylogo: false }).then(() => { plotReady = true; });
+          }, { responsive: true, displaylogo: false }).then(() => { plotReady = true; bindRelayout(); });
         }
       }
 
@@ -1070,7 +1171,8 @@
         datasets: () => state.datasets,
         activeIndices: () => state.activeIndices,
         setLimit: (key, v) => { state.limits[key] = v; renderTableBody(); updateChart(); },
-        setAnalysis: v => { state.analysisEnabled = v; $('analysis-toggle').checked = v; if (v) buildLimitsPanel(); initColumnFilters(); buildTableHeader(); renderTableBody(); updateChart(); }
+        setAnalysis: v => { state.analysisEnabled = v; $('analysis-toggle').checked = v; if (v) buildLimitsPanel(); initColumnFilters(); buildTableHeader(); renderTableBody(); updateChart(); },
+        dbg: function () { return { manualTick: JSON.parse(JSON.stringify(manualTick)), lastRange: JSON.parse(JSON.stringify(lastRange)) }; }
       };
     })();
   </script>
