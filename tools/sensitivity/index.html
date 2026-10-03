@@ -1443,50 +1443,66 @@
             transition: max-height 0.3s ease-out;
         }
 
-        #themeToggle {
-            position: fixed;
-            top: 10px;
-            right: 16px;
-            z-index: 50;
-            height: 36px;
-            border-radius: 50%;
-            border: 1px solid var(--border-color);
-            background: var(--panel-bg);
-            color: var(--text-main);
-            font-size: 16px;
-            line-height: 1;
-            cursor: pointer;
+        /* ===== 顶栏按钮：与其他页面统一（返回在左，主题+语言成组在右） ===== */
+        .back-link {
+            color: var(--text-sub);
+            font-size: 13px;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+        .back-link:hover { color: var(--primary-color); }
+
+        .header-actions {
+            margin-left: auto;
             display: flex;
             align-items: center;
-            justify-content: center;
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.15s, box-shadow 0.15s;
-            padding: 0;
-            width: 36px;
+            gap: 8px;
             flex-shrink: 0;
         }
 
+        #themeToggle {
+            height: 34px;
+            width: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color 0.2s, color 0.2s, transform 0.2s;
+        }
+
         #themeToggle:hover {
-            transform: scale(1.08);
-            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            transform: translateY(-1px);
         }
 
-        #themeToggle:active {
-            transform: scale(0.95);
-        }
-
-        /* ===== 新增：语言按钮 / 图表顶栏 / 拖拽遮罩 ===== */
         #langToggle {
-            margin-left: auto;
-            height: 30px; padding: 0 14px;
-            border-radius: 15px; border: 1px solid var(--border-color);
-            background: var(--panel-bg); color: var(--text-main);
-            font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;
-            transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s;
+            height: 34px;
+            width: auto;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            color: var(--text-main);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: border-color 0.2s, color 0.2s, transform 0.2s;
         }
         #langToggle:hover {
-            transform: scale(1.05); box-shadow: var(--shadow-md);
-            border-color: var(--primary-color); color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            transform: translateY(-1px);
         }
         .chart-topbar {
             display: flex; align-items: center; justify-content: flex-end; gap: 8px;
@@ -1538,7 +1554,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 20px;
-            flex: 1;
+            flex: 0 1 auto;
             min-width: 0;
         }
 
@@ -1563,10 +1579,6 @@
         }
 
         .seal-config-btn {
-            position: fixed;
-            top: 10px;
-            right: 58px;
-            z-index: 50;
             padding: 6px 12px;
             font-size: 11px;
             font-weight: 500;
@@ -1578,7 +1590,7 @@
             cursor: pointer;
             white-space: nowrap;
             width: fit-content;
-            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
             transition: transform 0.15s, box-shadow 0.15s;
         }
 
@@ -1610,10 +1622,8 @@
 </head>
 
 <body>
-    <button id="sealConfigBtn" class="seal-config-btn" style="display:none;" title="锁定当前配置，生成不可篡改的网页副本">🔒 锁定</button>
-    <button id="themeToggle" title="切换主题" data-sen-title="themeTitle">☀</button>
     <header>
-        <a href="/" style="font-size:13px; color:var(--text-sub); text-decoration:none; flex-shrink:0; padding:4px 10px; border:1px solid var(--border-color); border-radius:16px; transition:all var(--transition-speed);">← 返回首页</a>
+        <a class="back-link" href="/" data-sen="navBack">← 返回首页</a>
         <h1>Xplore 灵敏度测试数据分析工具
             <span id="embeddedBadge" class="embedded-data-badge" style="display:none;">内置数据</span>
         </h1>
@@ -1627,7 +1637,11 @@
                 <span id="embeddedNoDataTip" class="embedded-no-data-tip" style="display:none;" data-sen="notConfigured">(未配置)</span>
             </div>
         </div>
-        <button id="langToggle" title="Switch language">EN</button>
+        <div class="header-actions">
+            <button id="sealConfigBtn" class="seal-config-btn" style="display:none;" title="锁定当前配置，生成不可篡改的网页副本">🔒 锁定</button>
+            <button id="themeToggle" class="icon-btn" title="切换主题" data-sen-title="themeTitle">🌙</button>
+            <button id="langToggle" class="icon-btn lang-btn" title="Switch language">EN</button>
+        </div>
     </header>
 
     <div class="main-layout">
@@ -1773,20 +1787,21 @@
                 var btn = document.getElementById('themeToggle');
                 if (!btn) return;
                 var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                btn.textContent = isDark ? '☾' : '☀';
+                btn.textContent = isDark ? '☀️' : '🌙';
             }
             applyIcon();
             document.addEventListener('DOMContentLoaded', function () {
                 applyIcon();
                 document.getElementById('themeToggle').addEventListener('click', function () {
                     var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                    if (isDark) {
-                        document.documentElement.removeAttribute('data-theme');
-                        localStorage.setItem('theme', 'light');
-                    } else {
+                    var next = isDark ? 'light' : 'dark';
+                    if (next === 'dark') {
                         document.documentElement.setAttribute('data-theme', 'dark');
-                        localStorage.setItem('theme', 'dark');
+                    } else {
+                        document.documentElement.removeAttribute('data-theme');
                     }
+                    localStorage.setItem('theme', next);
+                    localStorage.setItem('gyboy-theme', next);
                     applyIcon();
                     if (window.Plotly && typeof updatePlotlyTheme === 'function') {
                         updatePlotlyTheme();
@@ -1823,6 +1838,7 @@
 
             /* ===== 新增：中英文切换 ===== */
             const SEN_STR = {
+                navBack: ['← 返回首页', '← Back'],
                 themeTitle: ['切换主题', 'Toggle theme'],
                 uploadTxt: ['📂 上传 TXT 数据', '📂 Upload TXT Data'],
                 dataConfig: ['⚙️ 数据配置', '⚙️ Data Config'],
