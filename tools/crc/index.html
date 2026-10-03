@@ -36,13 +36,12 @@
     .bit-wrap { overflow-x: auto; padding-bottom: 4px; }
     .bit-grid {
       display: grid;
-      grid-template-columns: repeat(32, minmax(17px, 1fr));
-      gap: 3px;
-      min-width: 580px;
+      grid-template-columns: repeat(32, minmax(0, 1fr));
+      gap: 2px;
       font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
     }
-    .bit-cell { text-align: center; }
-    .bit-cell .bit-num { display: block; font-size: 0.58rem; color: var(--text-2); line-height: 1.4; }
+    .bit-cell { text-align: center; min-width: 0; }
+    .bit-cell .bit-num { display: block; font-size: 0.55rem; color: var(--text-2); line-height: 1.4; white-space: nowrap; }
     .bit-cell .bit-val {
       display: flex; align-items: center; justify-content: center;
       height: 22px; border: 1px solid var(--border); border-radius: 5px;
@@ -50,6 +49,10 @@
     }
     .bit-cell.on .bit-val { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 700; }
     .bit-cell.off .bit-val { opacity: 0.25; }
+    /* 窄屏下 32 列放不下两位数位序号，隐藏序号只留位值 */
+    @media (max-width: 900px) {
+      .bit-cell .bit-num { display: none; }
+    }
     .hex-opts { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
     .hex-opts label, .enc-row label {
       display: inline-flex; align-items: center; gap: 6px;
