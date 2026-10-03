@@ -72,4 +72,14 @@ var SITE_PAGES = [
     },
     tag: { zh: "工具", en: "Tool" },
   },
+  {
+    path: "tools/smith-chart/",
+    icon: "📐",
+    title: { zh: "Smith 圆图", en: "Smith Chart" },
+    desc: {
+      zh: "交互式 Smith 圆图：数据点与 Touchstone 导入、串/并联 L/C/R 与传输线拖动调谐、L/π/T 自动匹配、恒 Q/VSWR 圆、轨迹实时读数与分享链接。",
+      en: "Interactive Smith chart: data points & Touchstone import, drag tuning with series/shunt L/C/R and tx lines, L/π/T auto matching, constant-Q/VSWR circles, live trajectory readout and share links."
+    },
+    tag: { zh: "工具", en: "Tool" },
+  },
 ];
