@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smith 圆图工具（离线版）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📐</text></svg>">
+<style>
+:root{
+  --bg:#f3f4f6; --panel:#fff; --border:#dde1e7; --text:#1f2937; --muted:#6b7280;
+  --accent:#0d9488; --accent2:#d97706; --danger:#b91c1c;
+}
+[data-theme="dark"]{
+  --bg:#0b1220; --panel:#111a2c; --border:#2a3550; --text:#e2e8f0; --muted:#94a3b8;
+  --accent:#14b8a6; --accent2:#f59e0b; --danger:#f87171;
+}
+[data-theme="dark"] #chartwrap{background:#0f172a}
+[data-theme="dark"] #topo{background:#111a2c}
+[data-theme="dark"] details.sec>summary{background:#0d1526}
+[data-theme="dark"] input[type=text],[data-theme="dark"] input[type=number],[data-theme="dark"] select{background:#0d1526;color:var(--text);border-color:var(--border)}
+[data-theme="dark"] button.btn,[data-theme="dark"] .palette button,[data-theme="dark"] #viewctrl button,
+[data-theme="dark"] #pickpop button,[data-theme="dark"] .opt,[data-theme="dark"] .inline-edit,
+[data-theme="dark"] #topo-editor input[type=number],[data-theme="dark"] #topo-editor input[type=text]{background:#0d1526;color:var(--text);border-color:var(--border)}
+[data-theme="dark"] #hoverbox{background:rgba(13,21,38,.95);border-color:var(--border)}
+[data-theme="dark"] .livebox{background:#0c2a29;border-color:#134e4a}
+[data-theme="dark"] .livebox .v{color:#5eead4}
+[data-theme="dark"] .livebox .z{color:#94a3b8}
+[data-theme="dark"] .gridrow{border-bottom-color:#1e293b}
+[data-theme="dark"] #toast{background:#e2e8f0;color:#0f172a}
+.site-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.site-bar a{font-size:12.5px;color:var(--muted);text-decoration:none}
+.site-bar a:hover{color:var(--accent)}
+.site-bar button{height:26px;padding:0 10px;border-radius:13px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:11.5px;font-weight:600;cursor:pointer}
+.site-bar button:hover{border-color:var(--accent);color:var(--accent)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font:13px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",Arial,sans-serif;color:var(--text);background:var(--bg)}
+#app{display:flex;height:100vh;overflow:hidden}
+#left{flex:1;display:flex;flex-direction:column;min-width:320px;min-height:0}
+#chartwrap{flex:1;position:relative;min-width:200px;min-height:140px;background:#fff}
+#hsplit,#vsplit{flex-shrink:0;background:#e5e7eb;touch-action:none;user-select:none}
+#hsplit{height:7px;cursor:row-resize}
+#vsplit{width:7px;cursor:col-resize}
+#hsplit:hover,#vsplit:hover{background:var(--accent)}
+#topo{height:190px;flex-shrink:0;background:#fff;display:flex;flex-direction:column;min-height:80px}
+#topo-head{display:flex;align-items:center;gap:10px;padding:5px 10px;border-bottom:1px solid var(--border);font-size:12.5px;flex-wrap:wrap;min-height:34px}
+#topo-head .t{font-weight:700;white-space:nowrap}
+#topo-head .hint2{color:var(--muted);font-size:11.5px}
+#topo-editor{display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap}
+#topo-editor input[type=number]{width:64px;padding:1px 4px;font-size:12px}
+#topo-editor input[type=text]{width:58px;padding:1px 4px;font-size:12px}
+#topo-body{flex:1;overflow:auto;min-height:0;position:relative}
+#topo-svgwrap{min-width:100%}
+#topo-svgwrap svg{display:block}
+#topo-svgwrap [data-el]{cursor:pointer}
+#topo-svgwrap [data-el]:hover{opacity:.8}
+#topo-svgwrap [data-ins]{cursor:pointer}
+#pickpop{position:absolute;z-index:30;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;display:none;grid-template-columns:repeat(3,1fr);gap:4px}
+#pickpop button{padding:5px 8px;font-size:12px;border:1px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;color:var(--text)}
+#pickpop button:hover{border-color:var(--accent2);color:var(--accent2)}
+.valtext{cursor:text}
+.valtext:hover{fill:#111827}
+.inline-edit{position:absolute;z-index:40;width:72px;border:1px solid var(--accent2);border-radius:5px;padding:2px 5px;font:12px Consolas,Menlo,monospace;background:#fff;color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.dpga{grid-template-columns:12px 58px 46px 62px 62px}
+#viewctrl button:disabled{opacity:.35;cursor:not-allowed}
+#chart{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+#hoverbox{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.94);border:1px solid var(--border);
+  border-radius:8px;padding:7px 10px;font-size:12px;line-height:1.6;pointer-events:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);min-width:230px;display:none;font-family:Consolas,Menlo,monospace}
+#hoverbox .t{font-weight:700;color:var(--accent)}
+#viewctrl{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+#viewctrl button{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:14px;color:var(--text)}
+#viewctrl button:hover{border-color:var(--accent);color:var(--accent)}
+#modepill{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;background:var(--accent2);color:#fff;
+  padding:6px 16px;border-radius:999px;font-size:12.5px;box-shadow:0 2px 10px rgba(0,0,0,.2);display:none;white-space:nowrap;pointer-events:none}
+#toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:#111827;color:#fff;
+  padding:7px 16px;border-radius:999px;font-size:12.5px;display:none;pointer-events:none;opacity:.95}
+#sidebar{width:430px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;min-width:260px}
+#sb-scroll{flex:1;overflow-y:auto;min-height:0;overscroll-behavior:contain;padding-bottom:30px}
+#sidebar header{padding:12px 14px 8px}
+#sidebar h1{font-size:15px;margin:0}
+#sidebar .sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+details.sec{border-bottom:1px solid var(--border)}
+details.sec>summary{cursor:pointer;padding:9px 14px;font-weight:600;font-size:13px;background:#fafbfc;user-select:none;list-style:none;display:flex;align-items:center;gap:6px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:'▸';color:var(--muted);display:inline-block;width:12px}
+details.sec[open]>summary::before{content:'▾'}
+details.sec>summary .tag{font-size:10.5px;font-weight:400;color:#fff;background:var(--accent);border-radius:4px;padding:1px 6px;margin-left:6px}
+.secbody{padding:8px 14px 14px}
+.row{display:flex;align-items:center;gap:6px;margin:5px 0;flex-wrap:wrap}
+.row label{min-width:76px;color:var(--muted)}
+.row label.w{min-width:0}
+input[type=text],input[type=number],select{border:1px solid var(--border);border-radius:6px;padding:3px 6px;font:inherit;width:84px;background:#fff;color:var(--text)}
+input[type=number]{width:70px}
+input.wide{width:100%}
+button.btn{border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;color:var(--text)}
+button.btn:hover{border-color:var(--accent);color:var(--accent)}
+button.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.btn.primary:hover{filter:brightness(1.08);color:#fff}
+button.btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+button.mini{padding:1px 6px;font-size:11px;border-radius:5px}
+.palette{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:6px 0}
+.palette button{padding:6px 2px;font-size:12px;border:1px solid var(--border);background:#fff;border-radius:7px;cursor:pointer;color:var(--text)}
+.palette button:hover{border-color:var(--accent2);color:var(--accent2)}
+.palette button.armed{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.palette button.pal-ser{border-left:3px solid #3b69a0}
+.palette button.pal-sh{border-left:3px solid #b4693c}
+.hint{font-size:11.5px;color:var(--muted);margin:4px 0}
+.small{font-size:11.5px;color:var(--muted)}
+.mono{font-family:Consolas,Menlo,monospace}
+.livebox{background:#f0fdf9;border:1px solid #99f6e4;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12.5px}
+.livebox .v{font-size:15px;font-weight:700;color:#065f46;font-family:Consolas,Menlo,monospace}
+.livebox .v.bad{color:var(--danger)}
+.livebox .z{font-family:Consolas,Menlo,monospace;color:#334155;margin-top:3px}
+.gridrow{display:grid;gap:4px;align-items:center;padding:4px 0;border-bottom:1px dashed #e5e7eb;font-size:12px}
+.dpg{grid-template-columns:12px 18px 70px 56px 56px 20px 20px}
+.dpg2{grid-template-columns:150px 1fr 20px 20px 20px}
+.netg{grid-template-columns:86px 86px 1fr 20px 20px 20px}
+.chainrow{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px}
+.chainrow .idx{color:var(--muted);width:16px}
+input[type=checkbox]{accent-color:var(--accent)}
+.opt{display:block;width:100%;text-align:left;margin:4px 0;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;font:inherit;font-size:12.5px}
+.opt:hover{border-color:var(--accent);background:#f0fdf9}
+.opt .q{color:var(--muted);font-size:11px}
+#dp-rows input{padding:2px 4px;font-size:12px}
+.swatch{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.25)}
+@media (max-width:900px){
+  #app{flex-direction:column}
+  #vsplit{display:none}
+  #sidebar{width:auto!important;border-left:none;border-top:1px solid var(--border);max-height:45vh}
+  #topo{height:150px!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="left">
+  <div id="chartwrap">
+    <canvas id="chart"></canvas>
+    <div id="hoverbox"></div>
+    <div id="modepill"></div>
+    <div id="toast"></div>
+    <div id="viewctrl">
+      <button id="btn-zin" title="放大" data-sen-title="zoomIn">＋</button>
+      <button id="btn-zout" title="缩小" data-sen-title="zoomOut">－</button>
+      <button id="btn-fit" title="重置视图" data-sen-title="fitView">⊡</button>
+      <button id="btn-lock" title="锁定视图（禁止滚轮缩放与拖动平移，防止误操作）" data-sen-title="lockOff">🔓</button>
+    </div>
+  </div>
+  <div id="hsplit" title="上下拖动：调整电路拓扑区高度" data-sen-title="hsplit"></div>
+  <div id="topo">
+    <div id="topo-head">
+      <span class="t" data-sen="topoTitle">🔗 电路匹配拓扑</span>
+      <span class="hint2" data-sen="topoHint">点 ＋ 插入器件 · 单击数值改参数 · 双击器件删除 · 顺序＝负载 → 源</span>
+      <span id="topo-editor"></span>
+    </div>
+    <div id="topo-body">
+      <div id="topo-svgwrap"></div>
+      <div id="pickpop"></div>
+    </div>
+  </div>
+  </div><!-- /left -->
+  <div id="vsplit" title="左右拖动：调整侧栏宽度" data-sen-title="vsplit"></div>
+  <div id="sidebar">
+    <div class="site-bar">
+      <a href="/">← 返回首页</a>
+      <span style="flex:1"></span>
+      <button id="langToggle" title="Switch language">EN</button>
+      <button id="themeToggle" title="Toggle theme">🌙</button>
+    </div>
+    <div id="sb-scroll">
+    <header>
+      <h1 data-sen="appTitle">Smith 圆图工具 <span class="small" data-sen="appVer">离线版 v1.0</span></h1>
+      <div class="sub" data-sen="sub">参考 onlinesmithchart.com 重制 · 支持串/并联器件拖动调谐</div>
+    </header>
+
+    <details class="sec">
+      <summary data-sen="secSettings">⚙️ 图表与全局设置</summary>
+      <div class="secbody">
+        <div class="row"><label data-sen="refZ0">参考阻抗 Z₀</label><input type="number" id="in-z0" step="1" min="1"> Ω</div>
+        <div class="row"><label data-sen="freqUnit">频率单位</label>
+          <select id="in-frequnit"><option>Hz</option><option>kHz</option><option selected>MHz</option><option>GHz</option></select>
+          <label class="w" style="min-width:56px" data-sen="newFreq">新点频率</label><input type="text" id="in-deffreq">
+        </div>
+        <div class="row"><label data-sen="chartType">圆图类型</label>
+          <select id="in-charttype">
+            <option value="zy" selected data-sen="ctZy">阻抗 + 导纳 (Z+Y)</option>
+            <option value="z" data-sen="ctZ">仅阻抗 (Z)</option>
+            <option value="y" data-sen="ctY">仅导纳 (Y)</option>
+          </select>
+          <label class="w" data-sen="grid">网格</label>
+          <select id="in-grid"><option value="coarse" data-sen="gCoarse">疏</option><option value="medium" selected data-sen="gMedium">中</option><option value="fine" data-sen="gFine">密</option></select>
+        </div>
+        <div class="row">
+          <label class="w"><input type="checkbox" id="ck-vswr"> <span data-sen="vswrC">VSWR 圆</span></label>
+          <input type="text" id="in-vswrlist" style="width:90px" title="VSWR 值列表" data-sen-title="vswrList">
+          <label class="w"><input type="checkbox" id="ck-q"> <span data-sen="qArc">恒 Q 弧</span></label>
+          <input type="text" id="in-qlist" style="width:60px" title="Q 值列表" data-sen-title="qList">
+        </div>
+        <div class="row">
+          <label class="w"><input type="checkbox" id="ck-flabels" checked> <span data-sen="freqLabels">显示频率标签</span></label>
+          <label class="w"><input type="checkbox" id="ck-traj" checked> <span data-sen="showTraj">显示匹配轨迹</span></label>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary data-sen="secDp">📌 数据点 (DP)</summary>
+      <div class="secbody">
+        <div class="row">
+          <label data-sen="inputMode">输入方式</label>
+          <select id="dp-inmode"><option value="z" selected data-sen="imZ">Z = R+jX (Ω)</option><option value="y" data-sen="imY">Y = G+jB (mS)</option><option value="g" data-sen="imG">Γ = |Γ|∠°</option></select>
+        </div>
+        <div class="row" id="dp-fields"></div>
+        <div class="row">
+          <button class="btn primary" id="btn-adddp" data-sen="addDp">＋ 添加数据点</button>
+          <button class="btn" id="btn-import-s1p" data-sen="importS1p">导入 Touchstone (.s1p/.s2p)</button>
+          <input type="file" id="file-s1p" accept=".s1p,.s2p,.txt" style="display:none">
+        </div>
+        <div class="hint" data-sen="hintDp">双击圆图添加 DP、拖动 DP 改阻抗：均自动吸附网格线（按住 Alt 精确放置）。只有交互调谐选中的起始 DP 参与匹配。</div>
+        <div class="gridrow dpg" style="border-bottom:1px solid var(--border);font-weight:600">
+          <span></span><span>#</span><span data-sen="freqCol">频率</span><span>R (Ω)</span><span>X (Ω)</span><span></span><span></span>
+        </div>
+        <div id="dp-rows"></div>
+        <div class="hint" id="dp-netinfo"></div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary data-sen="secTuner">🎯 交互调谐（拖动匹配）<span class="tag" data-sen="tagNew">新增</span></summary>
+      <div class="secbody">
+        <div class="row"><label data-sen="designFreq">设计频率</label><input type="text" id="tuner-f"><span class="small" id="tuner-funit">MHz</span></div>
+        <div class="row">
+          <select id="tuner-dpsel" style="width:150px"></select>
+          <button class="btn" id="btn-tuner-fromdp" data-sen="startFromDp">从该 DP 开始</button>
+          <button class="btn" id="btn-tuner-pick" data-sen="pickOnChart">图上取点</button>
+        </div>
+        <div class="hint" id="tuner-status" data-sen="stInactive">未启用。选择起始负载点后，点选器件类型，然后在圆图上拖动绿色手柄（或直接拖动 DP），即可沿等 r / 等 g / 等|Γ| 圆滑动并实时读出元件值。</div>
+        <div class="palette" id="tuner-palette">
+          <button data-tune="serL" class="pal-ser" data-sen="palSerL">串联 L</button>
+          <button data-tune="serC" class="pal-ser" data-sen="palSerC">串联 C</button>
+          <button data-tune="serR" class="pal-ser" data-sen="palSerR">串联 R</button>
+          <button data-tune="tl" data-sen="palTL">传输线</button>
+          <button data-tune="shL" class="pal-sh" data-sen="palShL">并联 L</button>
+          <button data-tune="shC" class="pal-sh" data-sen="palShC">并联 C</button>
+          <button data-tune="shR" class="pal-sh" data-sen="palShR">并联 R</button>
+          <button id="btn-tuner-undo" data-sen="undoLast">↩ 撤销上一级</button>
+        </div>
+        <div class="livebox" id="tuner-live" style="display:none"></div>
+        <div class="row">
+          <button class="btn" id="btn-automatch" data-sen="lMatch">⚡ L 型匹配</button>
+          <button class="btn" id="btn-match-pi" data-sen="piMatch">π 型匹配</button>
+          <button class="btn" id="btn-match-t" data-sen="tMatch">T 型匹配</button>
+          <button class="btn danger" id="btn-tuner-clear" data-sen="clearBtn">清空</button>
+        </div>
+        <div id="automatch-results"></div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary data-sen="secStorage">💾 保存 / 读取 / 导出</summary>
+      <div class="secbody">
+        <div class="row">
+          <button class="btn" id="btn-export-png" data-sen="exportPng">导出 PNG</button>
+          <button class="btn" id="btn-export-json" data-sen="exportJson">导出 JSON</button>
+          <button class="btn" id="btn-import-json" data-sen="importJson">导入 JSON</button>
+          <input type="file" id="file-json" accept=".json" style="display:none">
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-copylink" data-sen="copyLink">复制分享链接 (URL)</button>
+          <button class="btn danger" id="btn-clearall" data-sen="clearAllBtn">清空全部</button>
+        </div>
+        <div class="hint" data-sen="lsHint">页面状态自动保存在本机（localStorage）；分享链接把全部状态编码进 URL；本页完全离线运行，无任何外部依赖。</div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary data-sen="secHelp">❓ 操作说明</summary>
+      <div class="secbody">
+        <ul style="margin:4px 0;padding-left:18px;font-size:12.5px">
+          <li data-sen-html="helpFlow"><b>常规匹配流程</b>：① 「数据点」面板添加 DP（负载阻抗）→ ② 在圆图下方「电路匹配拓扑」点 ＋ 插入器件 → ③ <b>单击器件上的数值</b>就地改参数、<b>双击器件</b>删除 → 每个器件自动生成对应「节点」DP（表格底部 + 圆图方形标记带名称），圆图实时显示匹配轨迹与终点。</li>
+          <li data-sen-html="helpSplit">拖动左右分隔条调整侧栏宽度；拖动圆图下方的分隔条调整拓扑区高度。</li>
+          <li data-sen-html="helpZoom">滚轮缩放（以光标为中心），拖动空白平移；右下角「🔓」锁定视图防误操作，「⊡」复位。</li>
+          <li data-sen-html="helpHover">悬停圆图：实时显示 Γ / Z / Y / VSWR / RL / Q；双击圆图加点；拖动 DP 改阻抗。</li>
+          <li data-sen-html="helpTuning">交互调谐（进阶）：选起点 → 点器件类型 → 拖动绿色手柄（轨迹末端）沿等 r / 等 g / 等|Γ| 圆滑动实时读值，松手直接写入下方拓扑（无需转换）；拖动起始 DP 时拓扑与节点数值同步更新；「L/π/T 型匹配」点方案直接替换拓扑（π/T 通过虚拟电阻级联两节 L，可按 Q 选择方案）。<b>只有选中的起始 DP 参与匹配并显示轨迹</b>，其余 DP 均为独立点（切换起始后轨迹随之切换）。双击/拖动 DP 自动吸附网格线（Alt 精确）。</li>
+          <li data-sen-html="helpKeys">快捷键：<span class="mono">+ / -</span> 缩放，<span class="mono">0</span> 复位视图，<span class="mono">Esc</span> 取消模式，<span class="mono">Del</span> 删除选中 DP。</li>
+        </ul>
+      </div>
+    </details>
+    </div><!-- /sb-scroll -->
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================ 复数运算 ============================ */
+const C=(re,im)=>({re,im});
+const cadd=(a,b)=>C(a.re+b.re,a.im+b.im);
+const csub=(a,b)=>C(a.re-b.re,a.im-b.im);
+const cmul=(a,b)=>C(a.re*b.re-a.im*b.im,a.re*b.im+a.im*b.re);
+const cdiv=(a,b)=>{const d=b.re*b.re+b.im*b.im;if(d===0)return C(Infinity,Infinity);return C((a.re*b.re+a.im*b.im)/d,(a.im*b.re-a.re*b.im)/d)};
+const cabs=a=>Math.hypot(a.re,a.im);
+const carg=a=>Math.atan2(a.im,a.re);
+const cinv=a=>cdiv(C(1,0),a);
+const cexpj=t=>C(Math.cos(t),Math.sin(t));
+const ONE=C(1,0);
+const z2g=z=>cdiv(csub(z,ONE),cadd(z,ONE));       /* 归一化 z -> Γ */
+const g2z=g=>cdiv(cadd(ONE,g),csub(ONE,g));       /* Γ -> 归一化 z */
+const y2g=y=>cdiv(csub(ONE,y),cadd(ONE,y));       /* 归一化 y -> Γ */
+
+/* ============================ 全局状态 ============================ */
+const PALETTE=['#e11d48','#2563eb','#059669','#d97706','#7c3aed','#0891b2','#db2777','#65a30d','#dc2626','#0f766e'];
+const UNIT_MULT={Hz:1,kHz:1e3,MHz:1e6,GHz:1e9};
+const ELEMS={
+  serL :{unit:'H' ,dom:'z'},
+  serC :{unit:'F' ,dom:'z'},
+  serR :{unit:'Ω' ,dom:'z'},
+  shL  :{unit:'H' ,dom:'y'},
+  shC  :{unit:'F' ,dom:'y'},
+  shR  :{unit:'Ω' ,dom:'y'},
+  tl   :{unit:'°' ,dom:'g'},
+  stubO:{unit:'°' ,dom:'y'},
+  stubS:{unit:'°' ,dom:'y'},
+};
+let uid=1; const nid=()=>uid++;
+const SEN_STR = {"appTitle": ["Smith 圆图工具", "Smith Chart Tool"], "appVer": ["离线版 v1.0", "offline v1.0"], "sub": ["参考 onlinesmithchart.com 重制 · 支持串/并联器件拖动调谐", "Remade after onlinesmithchart.com - series/shunt drag tuning"], "zoomIn": ["放大", "Zoom in"], "zoomOut": ["缩小", "Zoom out"], "fitView": ["重置视图", "Reset view"], "lockOff": ["锁定视图（禁止滚轮缩放与拖动平移，防止误操作）", "Lock view (disable wheel zoom and pan)"], "lockOn": ["视图已锁定：滚轮缩放与拖动平移已禁用（点击解锁）", "View locked: wheel zoom and pan disabled (click to unlock)"], "lockedToast": ["视图已锁定：点击右下角解锁按钮", "View locked: click the unlock button"], "locked": ["视图已锁定", "View locked"], "unlocked": ["视图已解锁", "View unlocked"], "hsplit": ["上下拖动：调整电路拓扑区高度", "Drag to resize the topology area"], "vsplit": ["左右拖动：调整侧栏宽度", "Drag to resize the sidebar"], "topoTitle": ["🔗 电路匹配拓扑", "🔗 Matching topology"], "topoHint": ["点 ＋ 插入器件 · 单击数值改参数 · 双击器件删除 · 顺序＝负载 → 源", "+ insert element · click a value to edit · double-click to delete · order: load to source"], "secSettings": ["⚙️ 图表与全局设置", "⚙️ Chart & global settings"], "refZ0": ["参考阻抗 Z₀", "Reference impedance Z₀"], "freqUnit": ["频率单位", "Frequency unit"], "newFreq": ["新点频率", "New point frequency"], "chartType": ["圆图类型", "Chart type"], "ctZy": ["阻抗 + 导纳 (Z+Y)", "Impedance + Admittance (Z+Y)"], "ctZ": ["仅阻抗 (Z)", "Impedance only (Z)"], "ctY": ["仅导纳 (Y)", "Admittance only (Y)"], "grid": ["网格", "Grid"], "gCoarse": ["疏", "Coarse"], "gMedium": ["中", "Medium"], "gFine": ["密", "Fine"], "vswrC": ["VSWR 圆", "VSWR circles"], "vswrList": ["VSWR 值列表", "VSWR value list"], "qArc": ["恒 Q 弧", "Constant-Q arcs"], "qList": ["Q 值列表", "Q value list"], "freqLabels": ["显示频率标签", "Frequency labels"], "showTraj": ["显示匹配轨迹", "Matching trajectories"], "secDp": ["📌 数据点 (DP)", "📌 Data points (DP)"], "inputMode": ["输入方式", "Input mode"], "imZ": ["Z = R+jX (Ω)", "Z = R+jX (Ω)"], "imY": ["Y = G+jB (mS)", "Y = G+jB (mS)"], "imG": ["Γ = |Γ|∠°", "Γ = |Γ|∠°"], "dpZ": ["阻抗", "Impedance"], "dpY": ["导纳", "Admittance"], "dpG": ["反射系数", "Reflection coefficient"], "addDp": ["＋ 添加数据点", "+ Add data point"], "importS1p": ["导入 Touchstone (.s1p/.s2p)", "Import Touchstone (.s1p/.s2p)"], "hintDp": ["双击圆图添加 DP、拖动 DP 改阻抗：均自动吸附网格线（按住 Alt 精确放置）。只有交互调谐选中的起始 DP 参与匹配。", "Double-click the chart to add a DP, or drag a DP to change impedance; both snap to grid lines (Alt for exact placement). Only the tuning start DP participates in matching."], "freqCol": ["频率", "Frequency"], "freqRow": ["频率（可带 k/M/G 后缀）", "Frequency (k/M/G suffix allowed)"], "showHide": ["显示/隐藏", "Show/Hide"], "delOne": ["删除", "Delete"], "autoNodes": ["─ 拓扑节点（随器件自动生成） ─", "- Topology nodes (auto-generated) -"], "noDps": ["（无数据点）", "(no data points)"], "netInfo": ["表内 R/X 为负载阻抗；箭头行为经匹配网络后的输入阻抗（各 DP 按自身频率计算）。", "R/X are load impedances; the arrow row shows the input impedance after the matching network (per-DP frequency)."], "secTuner": ["🎯 交互调谐（拖动匹配）", "🎯 Interactive tuning (drag to match)"], "tagNew": ["新增", "NEW"], "designFreq": ["设计频率", "Design frequency"], "startFromDp": ["从该 DP 开始", "Start from this DP"], "pickOnChart": ["图上取点", "Pick on chart"], "stInactive": ["未启用。选择起始负载点后，点选器件类型，然后拖动圆图上的绿色手柄（轨迹末端），即可沿等 r / 等 g / 等|Γ| 圆滑动并实时读出元件值；器件直接写入下方拓扑。", "Inactive. Pick a start load point and an element type, then drag the green handle on the chart (trajectory end) to slide along constant r / g / |Γ| circles with live readout; elements are written to the topology below."], "stActiveHint": ["点选器件类型后，拖动圆图上的绿色手柄滑动，松手即写入/更新下方拓扑；点选拓扑器件或拖动起始 DP 时拓扑与节点同步更新。", "After choosing an element type, drag the green handle on the chart and release to write/update the topology below. Clicking a topology element or dragging the start DP keeps everything in sync."], "tuningEl": ["调谐器件：", "Tuning element: "], "dragToEdit": ["（拖动手柄修改它的值）", " (drag the handle to change its value)"], "autoTag": ["（自动节点）", " (auto node)"], "autoDP": ["自动", "auto"], "autoNode": ["（自动）", " (auto)"], "curPoint": ["当前点（拖动手柄调整）", "Current point (drag handle to tune)"], "palSerL": ["串联 L", "Ser L"], "palSerC": ["串联 C", "Ser C"], "palSerR": ["串联 R", "Ser R"], "palTL": ["传输线", "Tx line"], "palShL": ["并联 L", "Sh L"], "palShC": ["并联 C", "Sh C"], "palShR": ["并联 R", "Sh R"], "undoLast": ["↩ 撤销上一级", "↩ Undo last"], "lMatch": ["⚡ L 型匹配", "⚡ L match"], "piMatch": ["π 型匹配", "π match"], "tMatch": ["T 型匹配", "T match"], "clearBtn": ["清空", "Clear"], "pickStartPill": ["选取起点：在圆图内点击一次", "Pick start: click once inside the chart"], "armedPillA": ["拖动绿色手柄或 DP：添加/调整「", "Drag the green handle or a DP: add/adjust \""], "armedPillB": ["」，松手提交", "\" - release to commit"], "addDpFirst": ["请先添加数据点，或用「图上取点」选择起点", "Add a data point first, or use \"Pick on chart\""], "clickToPlace": ["请在圆图内点击以放置负载起点", "Click inside the chart to place the load start"], "selectDpOne": ["请先选择一个 DP", "Select a DP first"], "selectDpFirst": ["请先选择起始 DP", "Select the start DP first"], "pickElType": ["请先点选一个器件类型（串联/并联/传输线）", "Pick an element type first (series / shunt / line)"], "startFromToast": ["已从 DP #", "Tuning started from DP #"], "startFromToast2": [" 开始调谐（直接作用于下方拓扑）", " (acts on the topology below)"], "switchedTo": ["起始已切换：DP #", "Start switched: DP #"], "nothingToUndo": ["没有可撤销的元件", "Nothing to undo"], "clearedToast": ["已清空拓扑与匹配轨迹（负载 DP 保留）", "Topology and trajectories cleared (load DPs kept)"], "secStorage": ["💾 保存 / 读取 / 导出", "💾 Save / Load / Export"], "exportPng": ["导出 PNG", "Export PNG"], "exportJson": ["导出 JSON", "Export JSON"], "importJson": ["导入 JSON", "Import JSON"], "copyLink": ["复制分享链接 (URL)", "Copy share link (URL)"], "clearAllBtn": ["清空全部", "Clear all"], "lsHint": ["页面状态自动保存在本机（localStorage）；分享链接把全部状态编码进 URL；本页完全离线运行，无任何外部依赖。", "State is auto-saved locally (localStorage); the share link encodes all state into the URL; this page runs fully offline with no external dependencies."], "secHelp": ["❓ 操作说明", "❓ How to use"], "confirmClear": ["清空全部 DP、轨迹与匹配网络？", "Clear all DPs, trajectories and the matching network?"], "stateImported": ["已导入状态", "State imported"], "importFail": ["导入失败：", "Import failed: "], "linkCopied": ["链接已复制（含全部状态，约 ", "Link copied (full state, about "], "linkCopied2": [" KB）", " KB)"], "copyManual": ["请手动复制链接：", "Please copy the link manually: "], "s1pFail": ["未能解析该 Touchstone 文件", "Could not parse that Touchstone file"], "s1pOk": ["已导入 ", "Imported "], "s1pOk2": [" 个频点（", " frequency points ("], "s1pOk3": [" ~ ", " - "], "s1pOk4": ["）", ")"], "autoNodeDel": ["自动节点不能直接删除，请在拓扑中删除对应器件", "Auto nodes cannot be deleted directly - remove the element in the topology"], "addedSnap": ["已添加 DP #", "Added DP #"], "snapped": ["（已吸附网格）", " (snapped to grid)"], "addedIndep": ["已添加独立 DP #", "Added independent DP #"], "addedIndep2": ["（点 🔗 参与匹配）", " (click the link icon to include it in matching)"], "setAsStart": ["：已设为调谐起始（随器件自动更新）", ": set as tuning start (auto-updated with elements)"], "invalidNum": ["请输入有效的数值", "Please enter valid numbers"], "pickedDp": ["已取点 DP #", "Picked DP #"], "clickInside": ["请点击圆图内部", "Please click inside the chart"], "deletedTo": ["已删除 ", "Deleted "], "cancel": ["取消", "Cancel"], "insertFirst": ["点 ＋ 插入第一个器件", "Click + to insert the first element"], "loadDp": ["负载 DP#", "Load DP#"], "loadZL": ["负载 ZL", "Load ZL"], "noDpSet": ["未设 DP", "No DP set"], "sourceEnd": ["源端", "Source"], "valEditTitle": ["输入数值后回车确认（单位：", "Type a value and press Enter (unit: "], "valEditTitle2": ["），Esc 取消", "), Esc to cancel"], "moveL": ["前移（靠近负载）", "Move toward load"], "moveR": ["后移（靠近源）", "Move toward source"], "elecLen": ["电气长度 ", "Elec. length "], "negWarn": ["　⚠ 数值为负，请反向拖动或改选对偶器件", "　⚠ Negative value - drag the other way or pick the dual element"], "cursorRead": ["光标读数", "Cursor readout"], "afterNet": ["经网络后：Z = ", "After network: Z = "], "pickStartFirst": ["请先指定起点（DP 或图上取点）", "Specify a start point first (DP or chart pick)"], "alreadyMatched": ["负载已匹配（|Γ|≈0），无需 ", "Load already matched, no "], "noNeedNet": [" 型网络。", " network needed."], "noSolA": ["无有效 ", "No valid "], "noSolB": [" 型解（负载/频率不适用）。", " solution (load/frequency not applicable)."], "solsHeader": [" 型匹配方案（点击应用：起始节点之前的器件保留，替换其后链段）", " solutions (click to apply: elements before the start node are kept, the rest replaced)"], "useStd": ["应用时用 1% 标准值", "Use 1% standard values on apply"], "appliedA": ["已应用 ", "Applied "], "appliedB": [" 型方案 ", " solution "], "appliedC": ["（保留前 ", " (kept first "], "appliedD": [" 级）", " stages)"], "stdLine": ["1%: ", "1%: "], "stdLine2": ["　5%: ", "  5%: "], "el": {"serL": ["串联电感", "Series L"], "serC": ["串联电容", "Series C"], "serR": ["串联电阻", "Series R"], "shL": ["并联电感", "Shunt L"], "shC": ["并联电容", "Shunt C"], "shR": ["并联电阻", "Shunt R"], "tl": ["传输线", "Tx line"], "stubO": ["开路支节", "Open stub"], "stubS": ["短路支节", "Short stub"]}, "serShort": ["串", "S"], "shShort": ["并", "P"], "autoNodeTip": ["自动节点：随拓扑器件更新，不可直接编辑", "Auto node: updates with topology elements, not directly editable"], "refFreqTip": ["参考频率", "Reference frequency"], "stStart": ["起始：", "Start: "], "solN": ["方案 ", "Option "], "fmtErr": ["格式错误", "Invalid format"], "noDpOpt": ["（无 DP）", "(no DP)"], "helpFlow": ["<b>常规匹配流程</b>：① 「数据点」面板添加 DP（负载阻抗）→ ② 在圆图下方「电路匹配拓扑」点 ＋ 插入器件 → ③ <b>单击器件上的数值</b>就地改参数、<b>双击器件</b>删除 → 每个器件自动生成对应「节点」DP（表格底部 + 圆图方形标记带名称），圆图实时显示匹配轨迹", "<b>Typical matching flow</b>: 1. Add a DP (load impedance) in the Data points panel; 2. click + in Matching topology below the chart to insert an element; 3. <b>click a value on an element</b> to edit it in place, <b>double-click an element</b> to delete. Each element auto-generates a node DP (bottom of the table + named square markers on the chart); trajectories show in real time"], "helpSplit": ["拖动左右分隔条调整侧栏宽度；拖动圆图下方的分隔条调整拓扑区高度。", "Drag the left/right splitter to resize the sidebar; drag the splitter below the chart to resize the topology area."], "helpZoom": ["滚轮缩放（以光标为中心），拖动空白平移；右下角「🔓」锁定视图防误操作，「⊡」复位。", "Wheel to zoom (centered on cursor), drag empty area to pan; the lock button at bottom right locks the view, the frame button resets it."], "helpHover": ["悬停圆图：实时显示 Γ / Z / Y / VSWR / RL / Q；双击圆图加点；拖动 DP 改阻抗。", "Hover the chart for live Γ / Z / Y / VSWR / RL / Q; double-click to add a point; drag a DP to change its impedance."], "helpTuning": ["交互调谐（进阶）：选起点 → 点器件类型 → 拖动绿色手柄（轨迹末端）沿等 r / 等 g / 等|Γ| 圆滑动实时读值，松手直接写入下方拓扑（无需转换）；拖动起始 DP 时拓扑与节点数值同步更新；「L/π/T 型匹配」点方案直接替换拓扑（π/T 通过虚拟电阻级联两节 L，可按 Q 选择方案）。", "Interactive tuning (advanced): pick a start, click an element type, then drag the green handle (trajectory end) along constant r / g / |Γ| circles with live readout; release to write into the topology below (no conversion needed). Dragging the start DP keeps topology and node values in sync. L/pi/T match applies a plan directly on click (pi/T cascade two L sections through a virtual resistor, pick by Q)."], "helpKeys": ["快捷键：<span class=\"mono\">+ / -</span> 缩放，<span class=\"mono\">0</span> 复位视图，<span class=\"mono\">Esc</span> 取消模式，<span class=\"mono\">Del</span> 删除选中 DP。", "Shortcuts: <span class=\"mono\">+ / -</span> zoom, <span class=\"mono\">0</span> reset view, <span class=\"mono\">Esc</span> cancel mode, <span class=\"mono\">Del</span> delete selected DP."], "elTip": ["单击数值修改 · 双击删除器件", "Click a value to edit - double-click to delete"]};
+function senLang() { return localStorage.getItem("sen-lang") === "en" ? "en" : "zh"; }
+function senT(key) { const e = SEN_STR[key]; if (!e) return key; return senLang() === "en" ? (e[1] || e[0]) : e[0]; }
+function elName(t) { return senT("el." + t); }
+const DARKC={"bg":["#fff","#0f172a"],"gridZ":["rgba(63,102,153,.6)","rgba(122,158,204,.4)"],"gridZ2":["rgba(63,102,153,.9)","rgba(148,180,220,.7)"],"gridY":["rgba(180,105,60,.6)","rgba(214,150,106,.45)"],"gridY2":["rgba(180,105,60,.95)","rgba(228,168,120,.7)"],"axis":["rgba(0,0,0,.3)","rgba(148,163,184,.45)"],"outer":["#374151","#cbd5e1"],"vswr":["rgba(225,29,72,.5)","rgba(251,113,133,.55)"],"vswrTxt":["rgba(225,29,72,.75)","rgba(251,113,133,.9)"],"qarc":["rgba(124,58,237,.45)","rgba(196,181,253,.5)"],"qarcTxt":["rgba(124,58,237,.75)","rgba(196,181,253,.9)"],"trajHalo":["rgba(255,255,255,.88)","rgba(15,23,42,.88)"],"markFill":["#fff","#0f172a"],"dash":["rgba(0,0,0,.14)","rgba(148,163,184,.35)"],"liveFill":["#fff","#0c2a29"],"teal":["#0d9488","#2dd4bf"],"amberDash":["rgba(217,119,6,.8)","rgba(245,158,11,.85)"],"amber":["#d97706","#f59e0b"],"trajTeal":["rgba(13,148,136,.35)","rgba(45,212,191,.4)"],"hoverFill":["rgba(255,255,255,.96)","rgba(13,21,38,.96)"],"hoverErr":["#b91c1c","#f87171"],"hoverOk":["#065f46","#34d399"],"hoverTxt":["#334155","#cbd5e1"],"gnd":["#94a3b8","#64748b"],"wire":["#475569","#94a3b8"],"loadFill":["#f0fdf9","#0d2a28"],"loadEdge":["#0f766e","#2dd4bf"],"srcFill":["#f8fafc","#16233c"],"nodeDot":["#374151","#94a3b8"],"halo":["#fff","#111a2c"],"symFill":["#fff","#111a2c"],"muted":["#9ca3af","#64748b"],"btnBg":["#fff","#293548"],"symZ":["#3b69a0","#7ca8dc"],"symY":["#b4693c","#d99a66"],"symD":["#0f766e","#2dd4bf"]};
+function TC(k){const p=DARKC[k];if(!p)return k;return document.documentElement.getAttribute("data-theme")==="dark"?p[1]:p[0];}
+function applySenLang() {
+  document.querySelectorAll("[data-sen]").forEach(el => { el.textContent = senT(el.getAttribute("data-sen")); });
+  document.querySelectorAll("[data-sen-title]").forEach(el => { el.title = senT(el.getAttribute("data-sen-title")); });
+  document.querySelectorAll("[data-sen-html]").forEach(el => { el.innerHTML = senT(el.getAttribute("data-sen-html")); });
+  const lt = document.getElementById("langToggle");
+  if (lt) { lt.textContent = senLang() === "zh" ? "EN" : "中"; }
+  renderDPFields(); renderDPTable(); renderTopo(); renderTopoEditor(); renderTunerDpSel(); updateTunerUI(); updateModePill(); requestDraw();
+}
+
+let state={
+  z0:50, freqUnit:'MHz', defFreq:100,
+  chartType:'zy', grid:'medium',
+  showVSWR:false, vswrList:'1.5, 2, 3',
+  showQ:false, qList:'0.3, 0.5, 1',
+  showFreqLabels:true, showTraj:true,
+  viewLocked:false, layout:{sbW:430,topoH:190},
+  dps:[], traces:[], network:[],
+};
+const tuner={
+  active:false, pickMode:false, armed:null,
+  f:100e6, startDpId:null,   /* 调谐起始 DP：调谐直接作用于 state.network（下方拓扑） */
+  editElId:null,             /* 当前调谐的器件（拖动圆图手柄实时改它的值） */
+};
+let selectedDpId=null;
+let netCache=new Map();      /* dp.id -> {segs:[{pts,zEnd}], zEnd} */
+let tunerCache=null;         /* 兼容保留（已弃用：轨迹由 netCache 派生） */
+
+/* ============================ 工具函数 ============================ */
+function fmt(v,d=4){
+  if(v===null||v===undefined||!isFinite(v))return '∞';
+  if(Math.abs(v)<1e-12)return '0';
+  return parseFloat(v.toPrecision(d)).toString();
+}
+function fmtComp(v,unit){
+  if(!isFinite(v))return '∞ '+unit;
+  const neg=v<0;const a=Math.abs(v);
+  if(a===0)return '0 '+unit;
+  const pre=[['G',1e9],['M',1e6],['k',1e3],['',1],['m',1e-3],['µ',1e-6],['n',1e-9],['p',1e-12],['f',1e-15]];
+  for(const[p,m]of pre){
+    if(a>=m*0.99995){return (neg?'-':'')+parseFloat((a/m).toPrecision(4))+' '+p+unit;}
+  }
+  return (neg?'-':'')+a.toExponential(2)+' '+unit;
+}
+function fmtZohm(z,z0){
+  const re=z.re*z0,im=z.im*z0;
+  return `${fmt(re)} ${im>=0?'+':'-'} j${fmt(Math.abs(im))} Ω`;
+}
+function fmtZohmShort(z,z0){
+  const re=z.re*z0,im=z.im*z0;
+  return fmt(re)+(Math.abs(im)>=0.05?` ${im>=0?'+':'-'} j${fmt(Math.abs(im))}`:'')+' Ω';
+}
+function fmtYmS(z,z0){
+  const y=cinv(z);
+  if(!isFinite(y.re)&&!isFinite(y.im))return '∞';
+  return `${fmt(y.re/z0*1e3)} ${y.im>=0?'+':'-'} j${fmt(Math.abs(y.im)/z0*1e3)} mS`;
+}
+function fmtFreq(f){
+  if(!isFinite(f))return '?';
+  if(f>=1e9)return parseFloat((f/1e9).toPrecision(5))+' GHz';
+  if(f>=1e6)return parseFloat((f/1e6).toPrecision(5))+' MHz';
+  if(f>=1e3)return parseFloat((f/1e3).toPrecision(5))+' kHz';
+  return parseFloat(f.toPrecision(5))+' Hz';
+}
+function fmtFreqShort(f){
+  if(f>=1e9)return parseFloat((f/1e9).toPrecision(3))+'G';
+  if(f>=1e6)return parseFloat((f/1e6).toPrecision(3))+'M';
+  if(f>=1e3)return parseFloat((f/1e3).toPrecision(3))+'k';
+  return Math.round(f)+'';
+}
+function parseFreqToHz(str){
+  const s=(str+'').trim();
+  const m=s.match(/^(-?\d+(?:\.\d+)?)\s*([GMkuµnf]?)\s*(?:Hz)?$/i);
+  if(!m)return NaN;
+  let mult=UNIT_MULT[state.freqUnit]||1;
+  const suf=m[2];
+  if(suf){
+    const map={G:1e9,M:1e6,k:1e3,u:1e-6,'µ':1e-6,n:1e-9,f:1e-12};
+    const hit=map[suf]!==undefined?map[suf]:map[suf.toUpperCase()];
+    if(hit!==undefined)mult=hit;
+  }
+  return parseFloat(m[1])*mult;
+}
+function parseList(str){
+  return (str||'').split(/[,，;；\s]+/).map(Number).filter(x=>isFinite(x)&&x>0);
+}
+function vswrOf(z){ /* 归一化 z -> VSWR */
+  const g=z2g(z);const p=cabs(g);
+  if(p>=0.999999)return Infinity;
+  return (1+p)/(1-p);
+}
+function rlOf(z){const p=Math.min(cabs(z2g(z)),0.999999);return -20*Math.log10(p);}
+function qOf(z){const r=z.re;if(r<=1e-12)return Infinity;return Math.abs(z.im/r);}
+
+/* ============================ 元件数学 ============================ */
+function elTheta(el,f){const ref=el.refF||tuner.f||1e8;return (el.val*Math.PI/180)*(f/ref);}
+function elDelta(el,f,z0){
+  const w=2*Math.PI*f;
+  switch(el.type){
+    case 'serL':return{dom:'z',axis:'x',d:(w*el.val)/z0};
+    case 'serC':return{dom:'z',axis:'x',d:-1/(w*el.val*z0)};
+    case 'serR':return{dom:'z',axis:'r',d:el.val/z0};
+    case 'shL' :return{dom:'y',axis:'b',d:-z0/(w*el.val)};
+    case 'shC' :return{dom:'y',axis:'b',d:w*el.val*z0};
+    case 'shR' :return{dom:'y',axis:'g',d:z0/el.val};
+  }
+  return null;
+}
+/* 采样一个元件对 z 的作用轨迹，返回 {pts:[Γ...], zEnd} */
+function sampleElement(zStart,el,f,z0,n){
+  n=n||56;
+  const pushZ=(pts,zk)=>{const g=z2g(zk);if(isFinite(g.re))pts.push(g);};
+  if(el.type==='tl'){
+    const th=elTheta(el,f),g0=z2g(zStart),pts=[];
+    for(let k=0;k<=n;k++)pts.push(cmul(g0,cexpj(-2*th*k/n)));
+    return{pts,zEnd:g2z(cmul(g0,cexpj(-2*th)))};
+  }
+  if(el.type==='stubO'||el.type==='stubS'){
+    const th=elTheta(el,f);
+    const zc=el.tlZ0||z0;
+    let db;
+    const t=Math.tan(th);
+    if(el.type==='stubO'){db=(z0/zc)*t;}
+    else{const c=Math.tan(th);db=Math.abs(c)<1e-9?Infinity*(-Math.sign(1)):(z0/zc)*(-1/Math.tan(th));}
+    if(!isFinite(db))db=db>0?1e9:-1e9;
+    const y0=cinv(zStart),pts=[];
+    if(Math.abs(y0.re)>1e6)y0.re=1e6*Math.sign(y0.re||1);
+    if(!isFinite(y0.im))y0.im=0;
+    for(let k=0;k<=n;k++){const yk=C(y0.re,y0.im+db*k/n);const g=y2g(yk);if(isFinite(g.re))pts.push(g);}
+    return{pts,zEnd:cinv(C(y0.re,y0.im+db))};
+  }
+  const d=elDelta(el,f,z0);
+  if(!d)return{pts:[z2g(zStart)],zEnd:zStart};
+  const pts=[];
+  if(d.dom==='z'){
+    const r0=Math.abs(zStart.re)<1e6?zStart.re:1e6,z0i=zStart.im;
+    for(let k=0;k<=n;k++){
+      const t=d.d*k/n;
+      pushZ(pts,d.axis==='x'?C(r0,z0i+t):C(r0+t,z0i));
+    }
+    return{pts,zEnd:d.axis==='x'?C(r0,z0i+d.d):C(r0+d.d,z0i)};
+  }
+  const y0=cinv(zStart);
+  const gr=isFinite(y0.re)?Math.max(-1e6,Math.min(1e6,y0.re)):0;
+  const gi=isFinite(y0.im)?y0.im:0;
+  for(let k=0;k<=n;k++){
+    const t=d.d*k/n;
+    const yk=d.axis==='b'?C(gr,gi+t):C(gr+t,gi);
+    const g=y2g(yk);if(isFinite(g.re))pts.push(g);
+  }
+  const yEnd=d.axis==='b'?C(gr,gi+d.d):C(gr+d.d,gi);
+  return{pts,zEnd:cinv(yEnd)};
+}
+
+/* 网络缓存：仅交互调谐选中的起始 DP 有匹配轨迹，其他 DP 均为独立点 */
+function recomputeNet(){
+  /* 有拓扑但尚未选中起始 DP 时，自动选中首个可见用户 DP（唯一参与匹配的点） */
+  if(state.network.length&&!matchDp()){
+    const dp=state.dps.find(d=>!d.auto&&d.visible);
+    if(dp){tuner.startDpId=dp.id;tuner.active=true;}
+  }
+  netCache=new Map();
+  const md=matchDp();
+  if(md){
+    const k=tunerStartIndex(md);
+    let z=C(md.re/state.z0,md.im/state.z0);
+    const segs=[];
+    for(let i=k;i<state.network.length;i++){
+      const s=sampleElement(z,state.network[i],md.f,state.z0);
+      segs.push(s);z=s.zEnd;
+      if(!isFinite(z.re)||!isFinite(z.im))break;
+    }
+    netCache.set(md.id,{segs,zEnd:z});
+  }
+  syncNodeDps();
+  renderDPNetInfo();
+}
+/* 参与匹配的 DP：仅交互调谐选中的起始点 */
+function matchDp(){
+  if(!tuner.active)return null;
+  return tunerStartDp();
+}
+/* 当前 DP：最近一次添加或选中的用户 DP（拓扑负载框/节点值/源端值以最新为准） */
+function currentDp(){
+  if(selectedDpId!=null){
+    const d=state.dps.find(x=>x.id===selectedDpId);
+    if(d)return d.auto?(state.dps.find(x=>x.id===d.rootId&&!d.auto)||d):d;
+  }
+  return rootDp()||state.dps.find(d=>!d.auto&&d.visible)||null;
+}
+/* 匹配链所属的负载 DP（自动节点的根） */
+function rootDp(){
+  const md=matchDp();
+  if(!md)return null;
+  if(!md.auto)return md;
+  return state.dps.find(d=>d.id===md.rootId&&!d.auto)||state.dps.find(d=>!d.auto&&d.visible)||null;
+}
+/* 调谐起始 DP：可以是用户 DP（节点0），也可以是自动节点 DP（节点k——调谐只作用于其后的器件） */
+function tunerStartDp(){
+  if(tuner.startDpId!=null){
+    const d=state.dps.find(x=>x.id===tuner.startDpId&&x.visible);
+    if(d)return d;
+  }
+  return state.dps.find(d=>!d.auto&&d.visible)||null;
+}
+/* 起始节点在器件链中的位置：用户 DP=0；自动节点=其参考器件之后 */
+function tunerStartIndex(dp){
+  if(!dp.auto)return 0;
+  const i=state.network.findIndex(e=>e.id===dp.refElId);
+  return i<0?0:i+1;
+}
+function tunerTip(){
+  const dp=tunerStartDp();
+  if(!dp||!state.network.length)return null;
+  /* 指定调谐器件时，手柄停在该器件输出节点 */
+  if(tuner.editElId!=null){
+    const idx=state.network.findIndex(e=>e.id===tuner.editElId);
+    if(idx<0)return null;
+    const root=rootDp()||dp;
+    let z=C(root.re/state.z0,root.im/state.z0);
+    for(let i=0;i<=idx;i++){
+      const s=sampleElement(z,state.network[i],root.f,state.z0);
+      z=s.zEnd;
+      if(!isFinite(z.re)||!isFinite(z.im))return null;
+    }
+    return{dp:root,tipG:z2g(z),tipZ:z};
+  }
+  const k=tunerStartIndex(dp);
+  let z=C(dp.re/state.z0,dp.im/state.z0);
+  for(let i=k;i<state.network.length;i++){
+    const s=sampleElement(z,state.network[i],dp.f,state.z0);
+    z=s.zEnd;
+    if(!isFinite(z.re)||!isFinite(z.im))return null;
+  }
+  return{dp,tipG:z2g(z),tipZ:z};
+}
+/* 拓扑节点 DP：随器件自动生成/更新（只属于当前调谐选中链的负载 DP） */
+function syncNodeDps(){
+  const anchor=rootDp();
+  const autos=state.dps.filter(d=>d.auto);
+  if(!anchor||!state.network.length){
+    if(autos.length){
+      state.dps=state.dps.filter(d=>!d.auto);
+      if(selectedDpId!=null&&!state.dps.some(d=>d.id===selectedDpId))
+        selectedDpId=state.dps.length?state.dps[0].id:null;
+    }
+    return;
+  }
+  const byEl=new Map(autos.map(d=>[d.refElId,d]));
+  let z=C(anchor.re/state.z0,anchor.im/state.z0);
+  const nodes=[];
+  for(const el of state.network){
+    const s=sampleElement(z,el,anchor.f,state.z0);
+    z=s.zEnd;
+    if(!isFinite(z.re)||!isFinite(z.im))break;
+    nodes.push({elId:el.id,z:C(z.re,z.im)});
+  }
+  const list=state.dps.filter(d=>!d.auto);
+  nodes.forEach((nd,i)=>{
+    const old=byEl.get(nd.elId);
+    list.push({id:old?old.id:nid(),auto:true,refElId:nd.elId,rootId:anchor.id,name:'DP'+(list.length+1),
+      f:anchor.f,re:nd.z.re*state.z0,im:nd.z.im*state.z0,visible:true,color:anchor.color});
+  });
+  state.dps=list;
+  if(selectedDpId!=null&&!state.dps.some(d=>d.id===selectedDpId))
+    selectedDpId=state.dps.length?state.dps[0].id:null;
+}
+function recomputeTuner(){ /* 轨迹统一由 state.network 派生，保留兼容 */ }
+
+/* ============================ 交互调谐 ============================ */
+function projectOnConstraint(gStart,type,gMouse){
+  const meta=ELEMS[type];
+  if(type==='tl'){
+    const r0=Math.min(cabs(gStart),0.9995);
+    return cmul(C(r0,0),cexpj(carg(gMouse)));
+  }
+  if(meta.dom==='z'){
+    const z=g2z(gStart);
+    if(!isFinite(z.re)||!isFinite(z.im))return null;
+    if(type==='serR'){
+      if(Math.abs(z.im)<1e-9){let x=Math.max(-0.998,Math.min(0.998,gMouse.re));return C(x,0);}
+      return projectCircle(C(1,1/z.im),1/Math.abs(z.im),gMouse);
+    }
+    const r=Math.max(0,z.re);
+    return projectCircle(C(r/(1+r),0),1/(1+r),gMouse);
+  }
+  const y=cinv(g2z(gStart));
+  const gr=isFinite(y.re)?y.re:0,gi=isFinite(y.im)?y.im:0;
+  if(type==='shR'){
+    if(Math.abs(gi)<1e-9){let x=Math.max(-0.998,Math.min(0.998,gMouse.re));return C(x,0);}
+    return projectCircle(C(-1,1/gi),1/Math.abs(gi),gMouse);
+  }
+  const g=Math.max(0,gr);
+  return projectCircle(C(-g/(1+g),0),1/(1+g),gMouse);
+}
+function projectCircle(cc,R,m){
+  const d=csub(m,cc),L=cabs(d);
+  if(L<1e-12)return null;
+  return cadd(cc,C(R*d.re/L,R*d.im/L));
+}
+function wrapPi(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;}
+/* 拖动投影点 -> 元件值；tl 用 drag 累计角度 */
+function valueFromMotion(zStart,gEnd,type,f,z0,drag){
+  const w=2*Math.PI*f,zEnd=g2z(gEnd);
+  switch(type){
+    case 'serL':{const d=z0*(zEnd.im-zStart.im);return{value:d/w,ok:d>0};}
+    case 'serC':{const d=z0*(zEnd.im-zStart.im);return{value:-1/(w*d),ok:d<0};}
+    case 'serR':{const d=z0*(zEnd.re-zStart.re);return{value:d,ok:d>0};}
+    case 'shL' :{const dB=(cinv(zEnd).im-cinv(zStart).im)/z0;return{value:-1/(w*dB),ok:dB<0};}
+    case 'shC' :{const dB=(cinv(zEnd).im-cinv(zStart).im)/z0;return{value:dB/w,ok:dB>0};}
+    case 'shR' :{const dG=(cinv(zEnd).re-cinv(zStart).re)/z0;return{value:1/dG,ok:dG>0};}
+    case 'tl'  :{const deg=-drag.acc*180/Math.PI/2;return{value:deg,ok:deg>0};}
+  }
+  return{value:NaN,ok:false};
+}
+function describeValue(type,val,ok){
+  const u=ELEMS[type].unit;
+  let s;
+  if(type==='tl')s=senT('elecLen')+fmt(val)+'°';
+  else if(u==='H')s=`L = ${fmtComp(val,'H')}`;
+  else if(u==='F')s=`C = ${fmtComp(val,'F')}`;
+  else s=`R = ${fmtComp(val,'Ω')}`;
+  return{html:s+(ok?'':senT('negWarn')),ok};
+}
+/* 自动 L 型匹配：返回 [{els:[{type,val}...], q, label}] */
+function autoMatch(zl,z0,f){
+  const w=2*Math.PI*f,res=[];
+  const yl=cinv(zl);
+  const clean=(x,bad)=>isFinite(x)&&Math.abs(x)<1e9&&x>0;
+  const push=(els,q,label)=>{
+    if(els.every(e=>isFinite(e.val)&&e.val>0&&e.val<1e3))res.push({els,q,label});
+  };
+  /* A. 并联元件在前：等 g 圆 ∩ r=1 圆 */
+  const g=yl.re;
+  if(isFinite(g)&&g>0){
+    const ia=circX(-g/(1+g),1/(1+g),0.5,0.5);
+    if(ia)for(const ga of ia){
+      if(cabs(ga)>0.9995)continue;
+      const za=g2z(ga);
+      if(Math.abs(za.re-1)>0.02)continue;
+      const db=cinv(za).im-yl.im;
+      if(Math.abs(db)<1e-9)continue;
+      const sh=db>0?{type:'shC',val:db/(z0*w)}:{type:'shL',val:z0/(w*(-db))};
+      const xa=za.im;
+      if(Math.abs(xa)<1e-9)continue;
+      const se=xa>0?{type:'serC',val:1/(z0*w*xa)}:{type:'serL',val:z0*(-xa)/w};
+      push([sh,se],Math.abs(xa),
+        `${elName(sh.type)} ${sh.type==='shC'?fmtComp(sh.val,'F'):fmtComp(sh.val,'H')} ＋ ${elName(se.type)} ${se.type==='serC'?fmtComp(se.val,'F'):fmtComp(se.val,'H')}`);
+    }
+  }
+  /* B. 串联元件在前：等 r 圆 ∩ g=1 圆 */
+  const r=zl.re;
+  if(isFinite(r)&&r>0){
+    const ib=circX(r/(1+r),1/(1+r),-0.5,0.5);
+    if(ib)for(const gb of ib){
+      if(cabs(gb)>0.9995)continue;
+      const zb=g2z(gb),yb=cinv(zb);
+      if(Math.abs(yb.re-1)>0.02)continue;
+      const dx=zb.im-zl.im;
+      if(Math.abs(dx)<1e-9)continue;
+      const se=dx>0?{type:'serL',val:z0*dx/w}:{type:'serC',val:-1/(z0*w*dx)};
+      const bb=yb.im;
+      if(Math.abs(bb)<1e-9)continue;
+      const sh=bb>0?{type:'shL',val:z0/(w*bb)}:{type:'shC',val:(-bb)/(z0*w)};
+      push([se,sh],Math.abs(bb),
+        `${elName(se.type)} ${se.type==='serC'?fmtComp(se.val,'F'):fmtComp(se.val,'H')} ＋ ${elName(sh.type)} ${sh.type==='shC'?fmtComp(sh.val,'F'):fmtComp(sh.val,'H')}`);
+    }
+  }
+  return res;
+}
+/* 两个圆心在实轴上的圆求交 */
+function circX(c1,R1,c2,R2){
+  const d=c2-c1;
+  if(Math.abs(d)<1e-12)return null;
+  const x=(R1*R1-R2*R2+c2*c2-c1*c1)/(2*d);
+  const yy=R1*R1-(x-c1)*(x-c1);
+  if(yy<0)return null;
+  const y=Math.sqrt(yy);
+  return[C(x,y),C(x,-y)];
+}
+
+/* ============================ 画布与视图 ============================ */
+const cv=document.getElementById('chart'),ctx=cv.getContext('2d');
+const wrap=document.getElementById('chartwrap');
+let view={scale:300,cx:350,cy:350};
+function w2s(x,y){return[view.cx+x*view.scale,view.cy-y*view.scale];}
+function s2w(px,py){return[(px-view.cx)/view.scale,(view.cy-py)/view.scale];}
+function g2s(g){return w2s(g.re,g.im);}
+let viewDefault=true;
+function fitView(){
+  const w=cv.clientWidth||600,h=cv.clientHeight||600;
+  view.scale=Math.min(w,h)*0.44;view.cx=w/2;view.cy=h/2;
+  viewDefault=true;
+}
+function resizeCanvas(){
+  const r=wrap.getBoundingClientRect();
+  const dpr=window.devicePixelRatio||1;
+  cv.width=Math.max(1,Math.round(r.width*dpr));
+  cv.height=Math.max(1,Math.round(r.height*dpr));
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize',()=>{resizeCanvas();requestDraw();});
+
+let dirty=true;
+function requestDraw(){dirty=true;requestAnimationFrame(()=>{if(dirty){dirty=false;render();}});}
+
+const GRID={
+  coarse:{r:[0.2,0.5,1,2,5],x:[0.2,0.5,1,2,5]},
+  medium:{r:[0.1,0.2,0.3,0.5,0.7,1,1.5,2,3,5,7,10],x:[0.1,0.2,0.3,0.5,0.7,1,1.5,2,3,5,7,10]},
+  fine:{r:[0.05,0.1,0.15,0.2,0.3,0.4,0.5,0.7,1,1.5,2,3,4,5,7,10,15,20,30],x:[0.05,0.1,0.15,0.2,0.3,0.4,0.5,0.7,1,1.5,2,3,4,5,7,10,15,20,30]},
+};
+function diskClip(){
+  const[ox,oy]=w2s(0,0);
+  ctx.beginPath();ctx.arc(ox,oy,view.scale,0,Math.PI*2);ctx.clip();
+}
+function drawGrid(mirror,strokeC,labelC,showLabels){
+  const gs=GRID[state.grid]||GRID.medium;
+  ctx.save();diskClip();
+  ctx.strokeStyle=strokeC;ctx.lineWidth=1;
+  for(const r of gs.r){
+    const c=mirror?-r/(1+r):r/(1+r),R=1/(1+r);
+    const[px,py]=w2s(c,0);
+    ctx.beginPath();ctx.arc(px,py,R*view.scale,0,Math.PI*2);ctx.stroke();
+  }
+  for(const xv of gs.x){
+    for(const sign of[1,-1]){
+      const x=xv*sign,cxw=mirror?-1:1,cyw=1/x,R=1/Math.abs(x);
+      const th0=mirror?-Math.PI/2:Math.PI/2,th1=mirror?Math.PI/2:3*Math.PI/2;
+      ctx.beginPath();
+      const N=56;
+      for(let k=0;k<=N;k++){
+        const th=th0+(th1-th0)*k/N;
+        const[px,py]=w2s(cxw+R*Math.cos(th),cyw+R*Math.sin(th));
+        k?ctx.lineTo(px,py):ctx.moveTo(px,py);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  if(!showLabels)return;
+  ctx.save();
+  ctx.fillStyle=labelC;ctx.font='9.5px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const r of gs.r){
+    const[px,py]=w2s(mirror?-(r-1)/(r+1):(r-1)/(r+1),0);
+    ctx.fillText((mirror?'g':'r')+'='+r,px,py+11);
+  }
+  ctx.font='9px sans-serif';
+  for(const xv of gs.x){
+    const phi=2*Math.atan(xv);
+    for(const sign of[1,-1]){
+      const ang=mirror?(sign>0?Math.PI-phi:-Math.PI+phi):(sign>0?phi:-phi);
+      const[px,py]=w2s(1.06*Math.cos(ang),1.06*Math.sin(ang));
+      ctx.fillText((mirror?'b':'x')+(sign>0?'+':'-')+xv,px,py);
+    }
+  }
+  ctx.restore();
+}
+function drawArrow(x1,y1,x2,y2,color){
+  const a=Math.atan2(y2-y1,x2-x1),s=7;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-s*Math.cos(a-0.42),y2-s*Math.sin(a-0.42));
+  ctx.lineTo(x2-s*Math.cos(a+0.42),y2-s*Math.sin(a+0.42));
+  ctx.closePath();ctx.fillStyle=color;ctx.fill();
+}
+function drawPolyline(pts,color,lw,alpha){
+  if(!pts||pts.length<2)return;
+  ctx.save();if(alpha!==undefined)ctx.globalAlpha=alpha;
+  ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.lineJoin='round';
+  ctx.beginPath();
+  for(let i=0;i<pts.length;i++){
+    const[px,py]=g2s(pts[i]);
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+  }
+  ctx.stroke();ctx.restore();
+}
+
+/* ============================ 主渲染 ============================ */
+function render(){
+  const W=cv.clientWidth,H=cv.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=TC('bg');ctx.fillRect(0,0,W,H);
+  const[ox,oy]=w2s(0,0);
+  /* VSWR / Q */
+  ctx.save();diskClip();
+  if(state.showVSWR){
+    ctx.strokeStyle=TC('vswr');ctx.lineWidth=1.1;
+    for(const v of parseList(state.vswrList)){
+      const rho=Math.min((v-1)/(v+1),0.9999);
+      ctx.beginPath();ctx.arc(ox,oy,rho*view.scale,0,Math.PI*2);ctx.stroke();
+    }
+  }
+  if(state.showQ){
+    ctx.strokeStyle=TC('qarc');ctx.lineWidth=1.1;
+    for(const q of parseList(state.qList)){
+      for(const s of[1,-1]){
+        const cyw=-s/q,R=Math.sqrt(1+1/(q*q));
+        const[px,py]=w2s(0,cyw);
+        ctx.beginPath();ctx.arc(px,py,R*view.scale,0,Math.PI*2);ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+  if(state.showVSWR){
+    ctx.fillStyle=TC('vswrTxt');ctx.font='10px sans-serif';ctx.textAlign='left';
+    for(const v of parseList(state.vswrList)){
+      const rho=Math.min((v-1)/(v+1),0.9999);
+      const[px,py]=w2s(rho,0);
+      ctx.fillText('VSWR='+v,px+4,py-4);
+    }
+  }
+  if(state.showQ){
+    ctx.fillStyle=TC('qarcTxt');ctx.font='10px sans-serif';ctx.textAlign='center';
+    for(const q of parseList(state.qList)){
+      const phi=Math.atan2(2*q,q*q-1);
+      const[px,py]=w2s(Math.cos(phi),Math.sin(phi));
+      ctx.fillText('Q='+q,px,py-6);
+    }
+  }
+  /* 网格 */
+  if(state.chartType!=='y')drawGrid(false,TC('gridZ'),TC('gridZ2'),state.chartType!=='y');
+  if(state.chartType!=='z')drawGrid(true ,TC('gridY'),TC('gridY2'),state.chartType==='y');
+  /* 横轴 */
+  ctx.strokeStyle=TC('axis');ctx.lineWidth=1;
+  const[ax1,ay1]=w2s(-1,0),[ax2,ay2]=w2s(1,0);
+  ctx.beginPath();ctx.moveTo(ax1,ay1);ctx.lineTo(ax2,ay2);ctx.stroke();
+  /* 外圆 */
+  ctx.beginPath();ctx.arc(ox,oy,view.scale,0,Math.PI*2);
+  ctx.strokeStyle=TC('outer');ctx.lineWidth=1.5;ctx.stroke();
+  /* 轨迹线 */
+  for(const tr of state.traces){
+    if(!tr.visible)continue;
+    const pts=[];
+    for(const id of tr.dpIds){
+      const dp=state.dps.find(d=>d.id===id);
+      if(dp&&dp.visible)pts.push(z2g(C(dp.re/state.z0,dp.im/state.z0)));
+    }
+    drawPolyline(pts,tr.color,1.6,.75);
+  }
+  /* 匹配网络轨迹（每个 DP） */
+  if(state.showTraj&&state.network.length){
+    const md=matchDp();
+    for(const dp of state.dps){
+      /* 自动节点仅在被选为调谐起始时绘制轨迹（否则跳过） */
+      if(!dp.visible||(dp.auto&&(!md||md.id!==dp.id)))continue;
+      const nc=netCache.get(dp.id);if(!nc)continue;
+      for(const seg of nc.segs){
+        drawPolyline(seg.pts,dp.color,1.7,.9);
+        if(seg.pts.length>=2){
+          const p1=seg.pts[seg.pts.length-2],p2=seg.pts[seg.pts.length-1];
+          const[x1,y1]=g2s(p1),[x2,y2]=g2s(p2);
+          drawArrow(x1,y1,x2,y2,dp.color);
+        }
+      }
+      const last=nc.segs[nc.segs.length-1];
+      if(last&&isFinite(last.zEnd.re)){
+        const gE=z2g(last.zEnd);
+        if(isFinite(gE.re)&&cabs(gE)<0.9999){
+          const[px,py]=g2s(gE);
+          ctx.beginPath();ctx.arc(px,py,3.5,0,Math.PI*2);
+          ctx.fillStyle=dp.color;ctx.fill();
+          ctx.strokeStyle='#fff';ctx.lineWidth=1.2;ctx.stroke();
+          const sw=vswrOf(last.zEnd);
+          const zTxt='#'+dpNum(dp)+' '+fmtZohmShort(last.zEnd,state.z0)+(sw<1.15?' ✓':'');
+          ctx.font='10.5px sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+          ctx.lineWidth=3;ctx.strokeStyle=TC('trajHalo');
+          ctx.strokeText(zTxt,px+7,py+4);
+          ctx.fillStyle=dp.color;ctx.fillText(zTxt,px+7,py+4);
+        }
+      }
+    }
+  }
+  /* 交互调谐叠加层 */
+  if(tuner.active)drawTunerOverlay();
+  /* DP 标记 */
+  for(const dp of state.dps){
+    if(!dp.visible)continue;
+    const g=z2g(C(dp.re/state.z0,dp.im/state.z0));
+    if(!isFinite(g.re)||cabs(g)>1.0005)continue;
+    const[px,py]=g2s(g);
+    if(dp.id===selectedDpId){
+      ctx.beginPath();ctx.arc(px,py,8.5,0,Math.PI*2);
+      ctx.strokeStyle=dp.color;ctx.lineWidth=1.2;ctx.globalAlpha=.55;ctx.stroke();ctx.globalAlpha=1;
+    }
+    if(dp.auto){
+      ctx.beginPath();ctx.rect(px-4.5,py-4.5,9,9);
+      ctx.fillStyle=TC('markFill');ctx.fill();
+      ctx.strokeStyle=dp.color;ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=dp.color;ctx.font='10.5px sans-serif';ctx.textAlign='left';
+      ctx.fillText(dp.name,px+8,py-7);
+    }else{
+      ctx.beginPath();ctx.arc(px,py,4.5,0,Math.PI*2);
+      ctx.fillStyle=TC('markFill');ctx.fill();
+      ctx.strokeStyle=dp.color;ctx.lineWidth=2;ctx.stroke();
+      if(state.showFreqLabels){
+        ctx.fillStyle=dp.color;ctx.font='10.5px sans-serif';ctx.textAlign='left';
+        ctx.fillText(fmtFreqShort(dp.f),px+7,py-6);
+      }
+    }
+  }
+  /* 悬停十字线 */
+  if(hover.pos&&!hover.nearDp){
+    ctx.strokeStyle=TC('dash');ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(hover.pos.x,0);ctx.lineTo(hover.pos.x,H);
+    ctx.moveTo(0,hover.pos.y);ctx.lineTo(W,hover.pos.y);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+function drawTunerOverlay(){
+  const tip=tunerTip();
+  /* 起始 DP 菱形标记 */
+  if(tip){
+    const g0=z2g(C(tip.dp.re/state.z0,tip.dp.im/state.z0));
+    if(isFinite(g0.re)&&cabs(g0)<1.0005){
+      const[px,py]=g2s(g0);
+      ctx.beginPath();
+      ctx.moveTo(px,py-7);ctx.lineTo(px+7,py);ctx.lineTo(px,py+7);ctx.lineTo(px-7,py);
+      ctx.closePath();ctx.fillStyle=TC('liveFill');ctx.fill();
+      ctx.strokeStyle=TC('teal');ctx.lineWidth=2;ctx.stroke();
+    }
+  }
+  /* 拖动中：约束圆 + 预览弧 */
+  if(drag&&drag.kind==='tune'){
+    if(drag.circle){
+      ctx.save();diskClip();
+      ctx.setLineDash([6,5]);ctx.strokeStyle=TC('amberDash');ctx.lineWidth=1.3;
+      const[px,py]=w2s(drag.circle.c.re,drag.circle.c.im);
+      ctx.beginPath();ctx.arc(px,py,drag.circle.R*view.scale,0,Math.PI*2);ctx.stroke();
+      ctx.restore();ctx.setLineDash([]);
+      const[sx,sy]=g2s(drag.g0);
+      ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fillStyle=TC('amber');ctx.fill();
+    }
+    if(drag.gNew){
+      const pts=pathBetween(drag.g0,drag.gNew,drag.type,drag.baseZ);
+      if(pts)drawPolyline(pts,TC('amber'),2.4);
+    }
+  }
+  /* 手柄：非拖动时停在轨迹终点，拖动时跟随投影点 */
+  let handleG=null;
+  if(drag&&drag.kind==='tune'&&drag.gNew)handleG=drag.gNew;
+  else if(tip)handleG=tip.tipG;
+  if(!handleG)return;
+  const[hx,hy]=g2s(handleG);
+  if(drag&&drag.kind==='tune'){
+    ctx.beginPath();ctx.arc(hx,hy,13,0,Math.PI*2);
+    ctx.strokeStyle=TC('trajTeal');ctx.lineWidth=3;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(hx,hy,7,0,Math.PI*2);
+  ctx.fillStyle=TC('teal');ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  /* 拖动中：数值标签 */
+  if(drag&&drag.kind==='tune'&&drag.val&&drag.gNew){
+    const d=describeValue(drag.type,drag.val.value,drag.val.ok);
+    const zNow=g2z(drag.gNew);
+    const l1=`${elName(drag.type)}　${d.html}`;
+    const l2=`Z = ${fmtZohm(zNow,state.z0)}`;
+    ctx.font='12px Consolas,Menlo,monospace';
+    const w=Math.max(ctx.measureText(l1).width,ctx.measureText(l2).width)+18;
+    let bx=drag.pos.x+16,by=drag.pos.y-46;
+    if(bx+w>cv.clientWidth-6)bx=drag.pos.x-w-16;
+    if(by<6)by=drag.pos.y+16;
+    ctx.fillStyle=TC('hoverFill');ctx.strokeStyle=d.ok?TC('teal'):TC('hoverErr');ctx.lineWidth=1.2;
+    ctx.beginPath();
+    if(ctx.roundRect)ctx.roundRect(bx,by,w,36,7);else ctx.rect(bx,by,w,36);
+    ctx.fill();ctx.stroke();
+    ctx.fillStyle=d.ok?TC('hoverOk'):TC('hoverErr');ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(l1,bx+9,by+11);
+    ctx.fillStyle=TC('hoverTxt');ctx.fillText(l2,bx+9,by+26);
+  }
+}
+/* 两点之间按元件类型采样预览弧 */
+function pathBetween(g0,g1,type,zStart){
+  const n=48,pts=[];
+  if(type==='tl'){
+    const r0=Math.min(cabs(g0),0.9995);
+    let da=wrapPi(carg(g1)-carg(g0));
+    for(let k=0;k<=n;k++)pts.push(cmul(C(r0,0),cexpj(carg(g0)+da*k/n)));
+    return pts;
+  }
+  const meta=ELEMS[type];
+  if(meta.dom==='z'){
+    const z0v=g2z(g0),z1v=g2z(g1);
+    const fix=(a)=>isFinite(a)?Math.max(-1e6,Math.min(1e6,a)):0;
+    const A=type==='serR'?fix(z0v.re):fix(z0v.re),B=type==='serR'?fix(z0v.im):fix(z0v.im);
+    const a2=type==='serR'?fix(z1v.re):fix(z1v.im);
+    for(let k=0;k<=n;k++){
+      const t=k/n;
+      const zk=type==='serR'?C(A+(a2-A)*t,B):C(A,B+(a2-B)*t);
+      const g=z2g(zk);if(isFinite(g.re))pts.push(g);
+    }
+    return pts;
+  }
+  const y0=cinv(g2z(g0)),y1=cinv(g2z(g1));
+  const fix=(a)=>isFinite(a)?Math.max(-1e6,Math.min(1e6,a)):0;
+  const g0r=fix(y0.re),b0=fix(y0.im);
+  const tgt=type==='shR'?fix(y1.re):fix(y1.im);
+  for(let k=0;k<=n;k++){
+    const t=k/n;
+    const yk=type==='shR'?C(g0r+(tgt-g0r)*t,b0):C(g0r,b0+(tgt-b0)*t);
+    const g=y2g(yk);if(isFinite(g.re))pts.push(g);
+  }
+  return pts;
+}
+
+/* ============================ 指针交互 ============================ */
+let drag=null;
+const hover={pos:null,nearDp:null};
+function evPos(e){
+  const r=cv.getBoundingClientRect();
+  return{x:e.clientX-r.left,y:e.clientY-r.top};
+}
+function dpAt(x,y){
+  let best=null,bd=12;
+  for(const dp of state.dps){
+    if(!dp.visible)continue;
+    const g=z2g(C(dp.re/state.z0,dp.im/state.z0));
+    if(!isFinite(g.re))continue;
+    const[px,py]=g2s(g);
+    const d=Math.hypot(px-x,py-y);
+    if(d<bd){bd=d;best=dp;}
+  }
+  return best;
+}
+function tunerHandleAt(x,y){
+  if(!tuner.active)return false;
+  const tip=tunerTip();if(!tip)return false;
+  const[hx,hy]=g2s(tip.tipG);
+  return Math.hypot(hx-x,hy-y)<14;
+}
+function constraintCircleOf(gStart,type){
+  const meta=ELEMS[type];
+  if(type==='tl')return{c:C(0,0),R:Math.min(cabs(gStart),0.9995)};
+  if(meta.dom==='z'){
+    const z=g2z(gStart);
+    if(type==='serR'){
+      if(Math.abs(z.im)<1e-9)return null;
+      return{c:C(1,1/z.im),R:1/Math.abs(z.im)};
+    }
+    const r=Math.max(0,z.re);
+    return{c:C(r/(1+r),0),R:1/(1+r)};
+  }
+  const y=cinv(g2z(gStart));
+  const gr=isFinite(y.re)?y.re:0,gi=isFinite(y.im)?y.im:0;
+  if(type==='shR'){
+    if(Math.abs(gi)<1e-9)return null;
+    return{c:C(-1,1/gi),R:1/Math.abs(gi)};
+  }
+  const g=Math.max(0,gr);
+  return{c:C(-g/(1+g),0),R:1/(1+g)};
+}
+function beginTuneDrag(baseZ,baseG,mode,type,x,y,idx,f){
+  drag={kind:'tune',mode,type,baseZ,baseG,g0:baseG,gNew:null,val:null,
+        acc:0,prevAng:carg(baseG),start:{x,y},pos:{x,y},moved:false,
+        insertIdx:(idx===undefined)?state.network.length:idx,
+        f:f||tuner.f,
+        circle:constraintCircleOf(baseG,type)};
+}
+cv.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;
+  const p=evPos(e);
+  cv.setPointerCapture(e.pointerId);
+  if(tuner.pickMode){
+    const g=s2wG(p);
+    if(cabs(g)<0.999){
+      const g2=e.altKey?g:snapGamma(g);
+      const z=g2z(g2);
+      const dp={id:nid(),f:defFreqHz(),re:z.re*state.z0,im:z.im*state.z0,visible:true,
+        color:PALETTE[state.dps.filter(d=>!d.auto).length%PALETTE.length]};
+      state.dps.push(dp);
+      tuner.startDpId=dp.id;tuner.active=true;tuner.pickMode=false;
+      selectedDpId=dp.id;
+      setTunerFreq(dp.f);
+      netChanged();renderDPTable();renderTunerDpSel();updateTunerUI();
+      toast(senT('pickedDp')+dpNum(dp)+': '+fmtZohm(z,state.z0));
+    }else toast(senT('clickInside'));
+    return;
+  }
+  if(tunerHandleAt(p.x,p.y)){
+    const sdp=tunerStartDp();
+    if(!sdp){toast(senT('selectDpFirst'));return;}
+    const net=state.network;
+    /* 指定了调谐器件（拓扑中点选/新增）：手柄直接调整该器件 */
+    if(tuner.editElId!=null){
+      const idx=net.findIndex(e=>e.id===tuner.editElId);
+      if(idx>=0){
+        const root=rootDp()||sdp;
+        let baseZ=C(root.re/state.z0,root.im/state.z0);
+        for(let i=0;i<idx;i++){
+          const s2=sampleElement(baseZ,net[i],root.f,state.z0);baseZ=s2.zEnd;
+        }
+        beginTuneDrag(baseZ,z2g(baseZ),'adjust',net[idx].type,p.x,p.y,idx,root.f);
+        requestDraw();
+        return;
+      }
+      tuner.editElId=null;
+    }
+    const k=tunerStartIndex(sdp);
+    const zStart=C(sdp.re/state.z0,sdp.im/state.z0);
+    let type=tuner.armed,mode,insertIdx;
+    if(type){
+      if(k>=net.length){mode='create';insertIdx=net.length;}            /* 起始节点之后没有器件：新增 */
+      else if(net[net.length-1].type===type){mode='adjust';insertIdx=net.length-1;}  /* 末级同类型：调整 */
+      else{mode='create';insertIdx=net.length;}
+    }else if(k<net.length){
+      type=net[net.length-1].type;mode='adjust';insertIdx=net.length-1;
+    }else{
+      toast(senT('pickElType'));
+      return;
+    }
+    /* 该级作用前的基准 z（从起始节点走到插入/调整点） */
+    let baseZ=zStart;
+    for(let i=k;i<insertIdx;i++){
+      const s=sampleElement(baseZ,net[i],sdp.f,state.z0);baseZ=s.zEnd;
+    }
+    beginTuneDrag(baseZ,z2g(baseZ),mode,type,p.x,p.y,insertIdx,sdp.f);
+    requestDraw();
+    return;
+  }
+  const dp=dpAt(p.x,p.y);
+  if(dp){
+    selectedDpId=dp.id;
+    if(dp.auto){
+      /* 点击自动节点：设为调谐起始，拓扑负载框随之更新 */
+      if(state.network.length&&tuner.startDpId!==dp.id){
+        tuner.startDpId=dp.id;tuner.active=true;tuner.editElId=null;
+        setTunerFreq(dp.f);
+        recomputeNet();updateTunerUI();
+      }
+      requestDraw();
+      toast(dp.name+senT('setAsStart'));
+      return;
+    }
+    if(tuner.active&&tuner.armed){
+      /* 从该 DP 开始交互调谐：用户 DP 插入最前端，自动节点插入其参考器件之后 */
+      tuner.startDpId=dp.id;
+      setTunerFreq(dp.f);
+      beginTuneDrag(C(dp.re/state.z0,dp.im/state.z0),z2g(C(dp.re/state.z0,dp.im/state.z0)),'create',tuner.armed,p.x,p.y,tunerStartIndex(dp));
+      updateTunerUI();requestDraw();
+      return;
+    }
+    drag={kind:'dp',dp,start:{x:p.x,y:p.y},moved:false};
+    if(state.network.length&&tuner.startDpId!==dp.id){
+      /* 点选/拖动该 DP 即选中它参与匹配：拓扑负载框实时跟随 */
+      tuner.startDpId=dp.id;tuner.active=true;tuner.editElId=null;
+      setTunerFreq(dp.f);
+      recomputeNet();renderTopo();updateTunerUI();
+    }
+    requestDraw();
+    return;
+  }
+  if(state.viewLocked){toast(senT('lockedToast'));return;}
+  drag={kind:'pan',start:{x:p.x,y:p.y},cx:view.cx,cy:view.cy,moved:false};
+  cv.style.cursor='grabbing';
+});
+function s2wG(p){
+  const[x,y]=s2w(p.x,p.y);
+  let g=C(x,y);
+  const r=cabs(g);
+  if(r>0.9985)g=cmul(C(0.9985/r,0),g);
+  return g;
+}
+/* 光标吸附：把点击位置吸附到最近的等 r / 等 x 网格线或其交点（1-2-5 网格） */
+function nearestOf(arr,v){
+  let b=arr[0],bd=Infinity;
+  for(const a of arr){const d=Math.abs(a-v);if(d<bd){bd=d;b=a;}}
+  return b;
+}
+function snapGamma(g){
+  const gs=GRID[state.grid]||GRID.medium;
+  const z=g2z(g);
+  const rRaw=Math.max(0.02,z.re),xRaw=z.im;
+  const xs0=[0];for(const v of gs.x){xs0.push(v,-v);}
+  const rs=nearestOf(gs.r,rRaw);
+  const xs=nearestOf(xs0,xRaw);
+  let best=g,bd=Infinity;
+  for(const[r,x]of[[rs,xRaw],[rRaw,xs],[rs,xs]]){
+    if(r<=0)continue;
+    const g2=z2g(C(r,x));
+    if(!isFinite(g2.re)||cabs(g2)>0.9995)continue;
+    const d=(g2.re-g.re)**2+(g2.im-g.im)**2;
+    if(d<bd){bd=d;best=g2;}
+  }
+  return best;
+}
+cv.addEventListener('pointermove',e=>{
+  const p=evPos(e);
+  hover.pos=p;
+  hover.nearDp=dpAt(p.x,p.y);
+  updateHoverBox(p);
+  if(!drag){cv.style.cursor=(tunerHandleAt(p.x,p.y))?'grab':(hover.nearDp?'move':'crosshair');requestDraw();return;}
+  drag.pos=p;
+  if(drag.kind==='pan'){
+    view.cx=drag.cx+(p.x-drag.start.x);view.cy=drag.cy+(p.y-drag.start.y);
+    viewDefault=false;
+    requestDraw();return;
+  }
+  if(drag.kind==='dp'){
+    if(Math.hypot(p.x-drag.start.x,p.y-drag.start.y)>3)drag.moved=true;
+    const g=e.altKey?s2wG(p):snapGamma(s2wG(p)),z=g2z(g);   /* 拖动同样吸附网格，Alt 精确 */
+    drag.dp.re=z.re*state.z0;drag.dp.im=z.im*state.z0;
+    recomputeNet();requestDraw();
+    renderTopo();   /* 同步刷新拓扑（负载框/节点数值） */
+    if(tuner.active&&tuner.startDpId===drag.dp.id){
+      const tip=tunerTip();
+      if(tip)updateTunerLive(tip.tipG,null);
+    }
+    syncDpRowInputs(drag.dp);
+    return;
+  }
+  if(drag.kind==='tune'){
+    if(Math.hypot(p.x-drag.start.x,p.y-drag.start.y)>3)drag.moved=true;
+    const gMouse=C(...s2w(p.x,p.y));
+    const gNew=projectOnConstraint(drag.g0,drag.type,gMouse);
+    if(gNew&&isFinite(gNew.re)){
+      if(drag.type==='tl'){
+        const a=carg(gNew);
+        drag.acc+=wrapPi(a-drag.prevAng);drag.prevAng=a;
+      }
+      drag.gNew=gNew;
+      drag.val=valueFromMotion(drag.baseZ,gNew,drag.type,drag.f,state.z0,drag);
+      updateTunerLive(gNew,drag.val);
+    }
+    requestDraw();
+  }
+});
+cv.addEventListener('pointerup',e=>{
+  if(!drag)return;
+  const p=evPos(e);
+  if(drag.kind==='tune'){
+    if(drag.moved&&drag.val&&isFinite(drag.val.value)){
+      if(drag.mode==='adjust'&&state.network[drag.insertIdx]){
+        const tgt=state.network[drag.insertIdx];
+        tgt.val=drag.val.value;
+        if(drag.type==='tl')tgt.refF=drag.f;
+      }else{
+        const el={id:nid(),type:drag.type,val:drag.val.value};
+        if(drag.type==='tl'){el.tlZ0=state.z0;el.refF=drag.f;}
+        const idx=Math.max(0,Math.min(drag.insertIdx,state.network.length));
+        state.network.splice(idx,0,el);   /* 插入到起始节点之后对应的位置 */
+      }
+      tuner.armed=null;
+      netChanged();updateTunerUI();
+    }
+  }
+  if(drag.kind==='dp'&&drag.moved){
+    renderDPTable();save();
+  }
+  drag=null;
+  cv.style.cursor='crosshair';
+  requestDraw();
+});
+cv.addEventListener('pointerleave',()=>{hover.pos=null;document.getElementById('hoverbox').style.display='none';requestDraw();});
+cv.addEventListener('dblclick',e=>{
+  const p=evPos(e);
+  if(cabs(C(...s2w(p.x,p.y)))>0.999)return;
+  const g=e.altKey?s2wG(p):snapGamma(s2wG(p));
+  const z=g2z(g);
+  const dp={id:nid(),f:parseFreqToHz(document.getElementById('in-deffreq').value)||defFreqHz(),
+    re:z.re*state.z0,im:z.im*state.z0,visible:true,color:PALETTE[state.dps.length%PALETTE.length]};
+  state.dps.push(dp);
+  selectedDpId=dp.id;
+  recomputeNet();renderDPTable();renderTunerDpSel();renderTopo();save();requestDraw();
+  toast(senT('addedSnap')+dpNum(dp)+(e.altKey?'':senT('snapped')));
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  if(state.viewLocked){
+    const now=Date.now();
+    if(now-lockToastT>2200){lockToastT=now;toast(senT('lockedToast'));}
+    return;
+  }
+  const p=evPos(e);
+  const f=Math.pow(1.0018,-e.deltaY);
+  const ns=Math.max(20,Math.min(40000,view.scale*f));
+  const[x,y]=s2w(p.x,p.y);
+  view.scale=ns;
+  view.cx=p.x-x*ns;view.cy=p.y+y*ns;
+  viewDefault=false;
+  requestDraw();
+},{passive:false});
+let lockToastT=0;
+window.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.key==='+'||e.key==='='){zoomAt(cv.clientWidth/2,cv.clientHeight/2,1.25);}
+  else if(e.key==='-'){zoomAt(cv.clientWidth/2,cv.clientHeight/2,0.8);}
+  else if(e.key==='0'){fitView();requestDraw();}
+  else if(e.key==='Escape'){tuner.pickMode=false;if(tuner.armed){tuner.armed=null;}updateModePill();updatePalette();requestDraw();}
+  else if(e.key==='Delete'||e.key==='Backspace'){
+    if(selectedDpId!=null){
+      const _dp=state.dps.find(d=>d.id===selectedDpId);
+      if(_dp&&_dp.auto){toast(senT('autoNodeDel'));return;}
+      state.dps=state.dps.filter(d=>d.id!==selectedDpId);
+      state.traces.forEach(t=>t.dpIds=t.dpIds.filter(id=>id!==selectedDpId));
+      selectedDpId=null;
+      recomputeNet();renderDPTable();renderTunerDpSel();renderTopo();save();requestDraw();
+    }
+  }
+});
+function zoomAt(px,py,f){
+  if(state.viewLocked)return;
+  viewDefault=false;
+  const ns=Math.max(20,Math.min(40000,view.scale*f));
+  const[x,y]=s2w(px,py);
+  view.scale=ns;view.cx=px-x*ns;view.cy=py+y*ns;
+  requestDraw();
+}
+document.getElementById('btn-zin').onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,1.3);
+document.getElementById('btn-zout').onclick=()=>zoomAt(cv.clientWidth/2,cv.clientHeight/2,0.75);
+document.getElementById('btn-fit').onclick=()=>{fitView();requestDraw();};
+
+/* ============================ 悬停读数 ============================ */
+function updateHoverBox(p){
+  const hb=document.getElementById('hoverbox');
+  if(tuner.pickMode){hb.style.display='none';return;}
+  let html;
+  if(hover.nearDp){
+    const dp=hover.nearDp;
+    const zn=C(dp.re/state.z0,dp.im/state.z0);
+    const nc=netCache.get(dp.id);
+    html=`<div class="t">${dp.auto?dp.name+senT('autoNode'):'DP #'+dpNum(dp)}　f = ${fmtFreq(dp.f)}</div>`+
+      `<div>Z = ${fmtZohm(zn,state.z0)}</div><div>Y = ${fmtYmS(zn,state.z0)}</div>`+
+      `<div>Γ = ${fmt(cabs(z2g(zn)))} ∠ ${fmt(carg(z2g(zn))*180/Math.PI)}°</div>`+
+      `<div>VSWR = ${fmt(vswrOf(zn))}　RL = ${fmt(rlOf(zn))} dB</div>`;
+    if(nc&&state.network.length&&isFinite(nc.zEnd.re)){
+      html+=`<div style="margin-top:3px;border-top:1px dashed #ccc;padding-top:3px">${senT('afterNet')}Z = ${fmtZohm(nc.zEnd,state.z0)}<br>VSWR = ${fmt(vswrOf(nc.zEnd))}　RL = ${fmt(rlOf(nc.zEnd))} dB</div>`;
+    }
+  }else{
+    const[x,y]=s2w(p.x,p.y);
+    const g=C(x,y);
+    if(cabs(g)>1.02){hb.style.display='none';return;}
+    const gcl=cabs(g)>0.999?cmul(C(0.999/cabs(g),0),g):g;
+    const z=g2z(gcl);
+    html=`<div class="t">${senT('cursorRead')}</div>`+
+      `<div>Γ = ${fmt(cabs(gcl))} ∠ ${fmt(carg(gcl)*180/Math.PI)}°</div>`+
+      `<div>Z = ${fmtZohm(z,state.z0)}</div>`+
+      `<div>Y = ${fmtYmS(z,state.z0)}</div>`+
+      `<div>VSWR = ${fmt(vswrOf(z))}　RL = ${fmt(rlOf(z))} dB　Q = ${fmt(qOf(z))}</div>`;
+  }
+  hb.innerHTML=html;hb.style.display='block';
+}
+
+/* ============================ 侧栏 UI ============================ */
+const $=id=>document.getElementById(id);
+function dpNum(dp){return state.dps.indexOf(dp)+1;}
+function defFreqHz(){return parseFreqToHz($('in-deffreq').value)||100e6;}
+function freqValStr(f){const m=UNIT_MULT[state.freqUnit]||1;return parseFloat((f/m).toPrecision(6)).toString();}
+/* 设计频率：调谐与全局“新点频率”两处输入双向同步 */
+function setTunerFreq(hz){
+  tuner.f=hz;
+  state.defFreq=parseFloat((hz/(UNIT_MULT[state.freqUnit]||1)).toPrecision(6));
+  $('tuner-f').value=freqValStr(hz);
+  $('in-deffreq').value=state.defFreq;
+}
+
+function renderDPFields(){
+  const mode=$('dp-inmode').value,box=$('dp-fields');
+  if(mode==='z')box.innerHTML=`<label>${senT('dpZ')}</label><input type="number" id="dpf-a" value="25" step="any"> + j <input type="number" id="dpf-b" value="25" step="any"> Ω`;
+  else if(mode==='y')box.innerHTML=`<label>${senT('dpY')}</label><input type="number" id="dpf-a" value="20" step="any"> + j <input type="number" id="dpf-b" value="-20" step="any"> mS`;
+  else box.innerHTML=`<label>${senT('dpG')}</label><input type="number" id="dpf-a" value="0.44" step="any" min="0"> ∠ <input type="number" id="dpf-b" value="63" step="any"> °`;
+}
+$('dp-inmode').addEventListener('change',renderDPFields);
+$('btn-adddp').onclick=()=>{
+  const mode=$('dp-inmode').value;
+  const a=parseFloat($('dpf-a').value),b=parseFloat($('dpf-b').value);
+  if(!isFinite(a)||!isFinite(b)){toast(senT('invalidNum'));return;}
+  const f=defFreqHz();
+  let zn;
+  if(mode==='z')zn=C(a/state.z0,b/state.z0);
+  else if(mode==='y')zn=cinv(C(a/1e3*state.z0,b/1e3*state.z0));
+  else{
+    const m=Math.max(0,Math.min(0.999,Math.abs(a)));
+    zn=g2z(cmul(C(m,0),cexpj(b*Math.PI/180)));
+  }
+  const dp={id:nid(),f,re:zn.re*state.z0,im:zn.im*state.z0,visible:true,
+    color:PALETTE[state.dps.length%PALETTE.length]};
+  state.dps.push(dp);selectedDpId=dp.id;
+  recomputeNet();renderDPTable();renderTunerDpSel();renderTopo();save();requestDraw();
+  toast(senT('addedIndep')+dpNum(dp)+senT('addedIndep2'));
+};
+function dpInputVal(v){const n=Math.abs(v)<1e-9?0:v;return parseFloat(n.toPrecision(6));}
+function renderDPTable(){
+  const box=$('dp-rows');
+  const users=state.dps.filter(d=>!d.auto);
+  const autos=state.dps.filter(d=>d.auto);
+  const userHtml=users.map(dp=>{
+    const nc=netCache.get(dp.id);
+    const after=(state.network.length&&nc&&isFinite(nc.zEnd.re))?
+      `<div class="small" style="grid-column:3/8">→ ${fmtZohm(nc.zEnd,state.z0)}　VSWR=${fmt(vswrOf(nc.zEnd))}</div>`:'';
+    return`<div class="gridrow dpg" data-id="${dp.id}">
+      <span class="swatch" style="background:${dp.color}"></span>
+      <span>${dpNum(dp)}</span>
+      <input type="text" data-f="f" value="${freqValStr(dp.f)}" title="${senT('freqRow')} (${state.freqUnit})">
+      <input type="number" data-f="re" value="${dpInputVal(dp.re)}" step="any">
+      <input type="number" data-f="im" value="${dpInputVal(dp.im)}" step="any">
+      <span data-act="vis" style="cursor:pointer" title="${senT('showHide')}">${dp.visible?'👁':'🚫'}</span>
+      <span data-act="del" style="cursor:pointer;color:#b91c1c" title="${senT('delOne')}">✕</span>
+      ${after}
+    </div>`;
+  }).join('');
+  let autoHtml='';
+  if(autos.length){
+    autoHtml=`<div class="small" style="padding:5px 0 1px;color:#0d9488">${senT('autoNodes')}</div>`+
+      autos.map(dp=>{
+        const zn=C(dp.re/state.z0,dp.im/state.z0);
+        return`<div class="gridrow dpga" data-id="${dp.id}" title="${senT('autoNodeTip')}">
+          <span class="swatch" style="background:${dp.color};border-radius:2px"></span>
+          <span style="font-weight:600">${dp.name}</span>
+          <span class="small">${fmtFreqShort(dp.f)}</span>
+          <input type="number" readonly value="${parseFloat(dp.re.toPrecision(6))}" step="any">
+          <input type="number" readonly value="${parseFloat(dp.im.toPrecision(6))}" step="any">
+          <span class="small" style="grid-column:3/6">VSWR=${fmt(vswrOf(zn))}　RL=${fmt(rlOf(zn))} dB</span>
+        </div>`;
+      }).join('');
+  }
+  box.innerHTML=(userHtml+autoHtml)||'<div class="small" style="padding:6px 0">'+senT('noDps')+'</div>';
+  $('dp-netinfo').textContent=state.network.length?
+    senT('netInfo'):'';
+}
+$('dp-rows').addEventListener('change',e=>{
+  const row=e.target.closest('[data-id]');if(!row)return;
+  const dp=state.dps.find(d=>d.id===+row.dataset.id);if(!dp)return;
+  const f=e.target.dataset.f;
+  if(f==='f'){
+    const hz=parseFreqToHz(e.target.value);
+    if(isFinite(hz)&&hz>0)dp.f=hz;else e.target.value=freqValStr(dp.f);
+  }else if(f==='re'||f==='im'){
+    const v=parseFloat(e.target.value);
+    if(isFinite(v))dp[f]=v;
+  }
+  recomputeNet();renderDPTable();save();requestDraw();
+});
+$('dp-rows').addEventListener('click',e=>{
+  const act=e.target.dataset.act;if(!act)return;
+  const row=e.target.closest('[data-id]');if(!row)return;
+  const dp=state.dps.find(d=>d.id===+row.dataset.id);if(!dp)return;
+  if(act==='del'){
+    state.dps=state.dps.filter(d=>d.id!==dp.id);
+    state.traces.forEach(t=>t.dpIds=t.dpIds.filter(id=>id!==dp.id));
+    if(selectedDpId===dp.id)selectedDpId=null;
+  }else if(act==='vis'){dp.visible=!dp.visible;}
+  recomputeNet();renderDPTable();renderTunerDpSel();renderTopo();save();requestDraw();
+});
+function syncDpRowInputs(dp){
+  const row=document.querySelector(`#dp-rows [data-id="${dp.id}"]`);
+  if(!row)return;
+  const re=row.querySelector('[data-f="re"]'),im=row.querySelector('[data-f="im"]');
+  if(re&&document.activeElement!==re)re.value=parseFloat(dp.re.toPrecision(5));
+  if(im&&document.activeElement!==im)im.value=parseFloat(dp.im.toPrecision(5));
+}
+function renderDPNetInfo(){
+  /* 网络变化后刷新表格里的“经网络后”列；拖动 DP 途中跳过以免重建输入框 */
+  if(drag&&drag.kind==='dp')return;
+  renderDPTable();
+}
+
+/* ---------- 匹配网络 ---------- */
+const EL_DEFAULTS={serL:{val:10e-9},serC:{val:10e-12},serR:{val:10},shL:{val:20e-9},shC:{val:5e-12},shR:{val:100},
+  tl:{val:45,tlZ0:50},stubO:{val:30,tlZ0:50},stubS:{val:30,tlZ0:50}};
+function elValueStr(el){
+  if(el.type==='tl'||el.type==='stubO'||el.type==='stubS')return parseFloat(el.val.toPrecision(6));
+  if(ELEMS[el.type].unit==='H')return parseFloat((el.val*1e9).toPrecision(5));
+  if(ELEMS[el.type].unit==='F')return parseFloat((el.val*1e12).toPrecision(5));
+  return parseFloat(el.val.toPrecision(5));
+}
+function elUnitLabel(el){
+  if(el.type==='tl'||el.type==='stubO'||el.type==='stubS')return '°';
+  const u=ELEMS[el.type].unit;
+  return u==='H'?'nH':u==='F'?'pF':'Ω';
+}
+function elValToSI(el,disp){
+  if(el.type==='tl'||el.type==='stubO'||el.type==='stubS')return disp;
+  const u=ELEMS[el.type].unit;
+  if(u==='H')return disp*1e-9;
+  if(u==='F')return disp*1e-12;
+  return disp;
+}
+/* ============================ 电路拓扑面板 ============================ */
+const SYMC={get z(){return TC('symZ')},get y(){return TC('symY')},get d(){return TC('symD')}};
+let topoSelId=null,pickIdx=0;
+function netChanged(){
+  recomputeNet();renderTopo();renderTunerDpSel();save();requestDraw();
+  if(tuner.active){
+    const tip=tunerTip();
+    if(tip)updateTunerLive(tip.tipG,null);
+    else $('tuner-live').style.display='none';
+  }
+}
+function elLabel(el){
+  if(el.type==='tl'||el.type==='stubO'||el.type==='stubS')return fmt(el.val)+'°';
+  return fmtComp(el.val,ELEMS[el.type].unit);
+}
+function topoNodeLabel(z){
+  return fmt(z.re)+(z.im<0?'−':'+')+'j'+fmt(Math.abs(z.im));
+}
+function groundGlyph(x,y){
+  return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+4}" stroke="${TC('gnd')}" stroke-width="1.6"/>`+
+    `<line x1="${x-9}" y1="${y+4}" x2="${x+9}" y2="${y+4}" stroke="${TC('gnd')}" stroke-width="2"/>`+
+    `<line x1="${x-5.5}" y1="${y+8}" x2="${x+5.5}" y2="${y+8}" stroke="${TC('gnd')}" stroke-width="2"/>`+
+    `<line x1="${x-2.5}" y1="${y+12}" x2="${x+2.5}" y2="${y+12}" stroke="${TC('gnd')}" stroke-width="2"/>`;
+}
+function renderTopo(){
+  const wrap=document.getElementById('topo-svgwrap');
+  if(!wrap)return;
+  const els=state.network,n=els.length;
+  const body=$('topo-body');
+  const H=Math.max(118,(body.clientHeight||150)-6);
+  const yLine=Math.round(H*0.36),yGnd=H-24;
+  const yc=Math.round((yLine+yGnd)/2); /* 分支符号垂直中心（上下对称） */
+  const PITCH=118,padL=94,padR=104;
+  const ne0=Math.max(n,1);
+  /* 源框前预留一个元件位的空档，避免与最后一个器件的参数文字重叠 */
+  const W=Math.max(body.clientWidth||640,padL+(ne0+1)*PITCH+70);
+  const nx=i=>padL+PITCH*i;
+  const cx=i=>nx(i)+PITCH/2;
+  const ne=Math.max(n,1); /* 空网络时也保留一个间距，避免负载/源重叠 */
+  /* 负载框/节点值/源端值跟随最近添加或选中的 DP（以最新为准） */
+  const anchor=currentDp();
+  const Wv=[];
+  if(anchor){
+    let zw=C(anchor.re/state.z0,anchor.im/state.z0);
+    for(const el of els){
+      const s=sampleElement(zw,el,anchor.f,state.z0);
+      zw=s.zEnd;
+      if(!isFinite(zw.re)||!isFinite(zw.im))break;
+      Wv.push(C(zw.re,zw.im));
+    }
+  }
+  const S=[];
+  /* 主线（延伸到源框，源框前预留一个元件位空档） */
+  const sx=nx(ne)+(n?PITCH:0);
+  S.push(`<line x1="${nx(0)}" y1="${yLine}" x2="${sx}" y2="${yLine}" stroke="${TC('gnd')}" stroke-width="1.6"/>`);
+  /* 接地负载（显示初始 DP 的名称与数值），接地符号就近 */
+  const boxW=88,boxH=36,byT=yc-boxH/2,bx0=nx(0);
+  S.push(`<line x1="${bx0}" y1="${yLine}" x2="${bx0}" y2="${byT}" stroke="${TC('wire')}" stroke-width="1.6"/>`);
+  S.push(`<line x1="${bx0}" y1="${byT+boxH}" x2="${bx0}" y2="${yGnd}" stroke="${TC('wire')}" stroke-width="1.6"/>`);
+  S.push(`<rect x="${bx0-boxW/2}" y="${byT}" width="${boxW}" height="${boxH}" rx="6" fill="${TC('loadFill')}" stroke="${TC('loadEdge')}" stroke-width="1.8"/>`);
+  S.push(`<text x="${bx0}" y="${byT+14}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${TC('loadEdge')}">${anchor?senT('loadDp')+dpNum(anchor):senT('loadZL')}</text>`);
+  S.push(`<text x="${bx0}" y="${byT+29}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${TC('hoverTxt')}">${anchor?topoNodeLabel(C(anchor.re,anchor.im))+' Ω':senT('noDpSet')}</text>`);
+  S.push(groundGlyph(bx0,yGnd));
+  /* 接地源（Z₀ 电阻形式，与负载对称） */
+  S.push(`<line x1="${sx}" y1="${yLine}" x2="${sx}" y2="${byT}" stroke="${TC('wire')}" stroke-width="1.6"/>`);
+  S.push(`<line x1="${sx}" y1="${byT+boxH}" x2="${sx}" y2="${yGnd}" stroke="${TC('wire')}" stroke-width="1.6"/>`);
+  S.push(`<rect x="${sx-boxW/2}" y="${byT}" width="${boxW}" height="${boxH}" rx="6" fill="${TC('srcFill')}" stroke="${TC('wire')}" stroke-width="1.8"/>`);
+  const endZ=Wv.length?Wv[Wv.length-1]:null;
+  const endTxt=endZ?topoNodeLabel(C(endZ.re*state.z0,endZ.im*state.z0))+' Ω'+(vswrOf(endZ)<1.05?' ✓':''):(anchor?topoNodeLabel(C(anchor.re,anchor.im))+' Ω':'—');
+  S.push(`<text x="${sx}" y="${byT+14}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${TC('wire')}">${senT('sourceEnd')}</text>`);
+  S.push(`<text x="${sx}" y="${byT+29}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${TC('hoverTxt')}">${endTxt}</text>`);
+  S.push(groundGlyph(sx,yGnd));
+  /* 中间节点：圆点 + 该点阻抗（起始 DP 频率） */
+  for(let k=1;k<n;k++){
+    S.push(`<circle cx="${nx(k)}" cy="${yLine}" r="2.8" fill="${TC('nodeDot')}"/>`);
+    if(Wv[k-1])S.push(`<text x="${nx(k)}" y="${yLine+17}" text-anchor="middle" font-size="9.5" fill="${TC('wire')}" stroke="${TC('halo')}" stroke-width="3" paint-order="stroke">${topoNodeLabel(C(Wv[k-1].re*state.z0,Wv[k-1].im*state.z0))}</text>`);
+  }
+  /* 元件 */
+  els.forEach((el,i)=>{
+    const t=el.type,meta=ELEMS[t],x=cx(i);
+    const col=(t==='tl'||t==='stubO'||t==='stubS')?SYMC.d:(meta.dom==='z'?SYMC.z:SYMC.y);
+    let g=`<g data-el="${el.id}" data-selx="${x-34}" data-sely="${yLine-20}" data-selw="68" data-selh="${yGnd-yLine+8}"><title>${senT('elTip')}</title>`;
+    /* 透明命中区，保证整块区域可点选 */
+    if(meta.dom==='z'||t==='tl')g+=`<rect x="${x-36}" y="${yLine-22}" width="90" height="${yGnd-yLine-4}" fill="transparent"/>`;
+    else g+=`<rect x="${x-36}" y="${yLine-10}" width="96" height="${yGnd-yLine+18}" fill="transparent"/>`;
+    if(t==='tl'){
+      g+=`<rect x="${x-26}" y="${yLine-12}" width="52" height="24" rx="3" fill="${TC('symFill')}" stroke="${col}" stroke-width="2"/>`;
+      g+=`<line x1="${x-26}" y1="${yLine-4}" x2="${x+26}" y2="${yLine-4}" stroke="${col}" stroke-width="1" opacity=".45"/>`;
+      g+=`<text class="valtext" data-val="${el.id}" x="${x}" y="${yLine+30}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${col}">Zc=${el.tlZ0}Ω ${fmt(el.val)}°</text>`;
+    }else if(t==='stubO'||t==='stubS'){
+      const yE=yLine+12+16+Math.min(1,el.val/180)*30;
+      g+=`<line x1="${x}" y1="${yLine}" x2="${x}" y2="${yE}" stroke="${col}" stroke-width="2"/>`;
+      if(t==='stubO')g+=`<circle cx="${x}" cy="${yE+4}" r="3.5" fill="${TC('symFill')}" stroke="${col}" stroke-width="2"/>`;
+      else g+=`<line x1="${x-9}" y1="${yE}" x2="${x+9}" y2="${yE}" stroke="${col}" stroke-width="3"/>`;
+      g+=`<text class="valtext" data-val="${el.id}" x="${x+8}" y="${yE-6}" font-size="10.5" font-weight="600" fill="${col}">Zc=${el.tlZ0}Ω ${fmt(el.val)}°</text>`;
+    }else if(meta.dom==='z'){
+      if(t==='serL'){
+        g+=`<line x1="${x-28}" y1="${yLine}" x2="${x+28}" y2="${yLine}" stroke="${TC('symFill')}" stroke-width="8"/>`;
+        g+=`<path d="M ${x-28} ${yLine} q7,-15 14,0 q7,-15 14,0 q7,-15 14,0 q7,-15 14,0" fill="none" stroke="${col}" stroke-width="2.2"/>`;
+      }else if(t==='serC'){
+        g+=`<line x1="${x-28}" y1="${yLine}" x2="${x-5}" y2="${yLine}" stroke="${col}" stroke-width="2.2"/>`;
+        g+=`<line x1="${x-5}" y1="${yLine-12}" x2="${x-5}" y2="${yLine+12}" stroke="${col}" stroke-width="2.8"/>`;
+        g+=`<line x1="${x+5}" y1="${yLine-12}" x2="${x+5}" y2="${yLine+12}" stroke="${col}" stroke-width="2.8"/>`;
+        g+=`<line x1="${x+5}" y1="${yLine}" x2="${x+28}" y2="${yLine}" stroke="${col}" stroke-width="2.2"/>`;
+      }else{
+        g+=`<line x1="${x-22}" y1="${yLine}" x2="${x+22}" y2="${yLine}" stroke="${TC('symFill')}" stroke-width="8"/>`;
+        g+=`<rect x="${x-22}" y="${yLine-9}" width="44" height="18" rx="2" fill="${TC('symFill')}" stroke="${col}" stroke-width="2.2"/>`;
+      }
+      g+=`<text class="valtext" data-val="${el.id}" x="${x}" y="${yLine+30}" text-anchor="middle" font-size="11" font-weight="600" fill="${col}">${elLabel(el)}</text>`;
+    }else{
+      /* 并联：支路在信号线与地线之间垂直居中，上下引线等长 */
+      g+=`<line x1="${x}" y1="${yLine}" x2="${x}" y2="${yc-12}" stroke="${col}" stroke-width="1.8"/>`;
+      if(t==='shL')g+=`<path d="M ${x} ${yc-11} a5.5,5.5 0 0 1 0,11 a5.5,5.5 0 0 1 0,11" fill="none" stroke="${col}" stroke-width="2.2"/>`;
+      else if(t==='shC')g+=`<line x1="${x-11}" y1="${yc-3.5}" x2="${x+11}" y2="${yc-3.5}" stroke="${col}" stroke-width="2.8"/><line x1="${x-11}" y1="${yc+3.5}" x2="${x+11}" y2="${yc+3.5}" stroke="${col}" stroke-width="2.8"/>`;
+      else g+=`<rect x="${x-8}" y="${yc-12}" width="16" height="24" rx="2" fill="${TC('symFill')}" stroke="${col}" stroke-width="2.2"/>`;
+      g+=`<line x1="${x}" y1="${yc+12}" x2="${x}" y2="${yGnd}" stroke="${col}" stroke-width="1.8"/>`;
+      g+=groundGlyph(x,yGnd);
+      g+=`<text class="valtext" data-val="${el.id}" x="${x+15}" y="${yc+4}" font-size="11" font-weight="600" fill="${col}">${elLabel(el)}</text>`;
+    }
+    g+=`<text x="${x}" y="${yLine-24}" text-anchor="middle" font-size="10" fill="${TC('muted')}">${i+1}</text>`;
+    g+=`</g>`;
+    S.push(g);
+  });
+  if(!n)S.push(`<text x="${nx(0)+PITCH/2}" y="${yLine-26}" text-anchor="middle" font-size="12" fill="${TC('muted')}">${senT('insertFirst')}</text>`);
+  /* ＋ 插入按钮 */
+  for(let k=0;k<=n;k++){
+    S.push(`<g data-ins="${k}"><line x1="${nx(k)}" y1="${yLine-26}" x2="${nx(k)}" y2="${yLine-9}" stroke="${TC('amber')}" stroke-dasharray="2 3" opacity=".55"/><circle cx="${nx(k)}" cy="${yLine-34}" r="8" fill="${TC('symFill')}" stroke="${TC('amber')}" stroke-width="1.6"/><text x="${nx(k)}" y="${yLine-29.5}" text-anchor="middle" font-size="13" fill="${TC('amber')}">＋</text></g>`);
+  }
+  /* 选中高亮框（独立元素，选中时原地更新，不重建 SVG，保证双击可识别） */
+  S.push(`<rect id="topo-selrect" fill="none" stroke="${TC('amber')}" stroke-dasharray="4 3" rx="7" style="display:none"/>`);
+  wrap.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${S.join('')}</svg>`;
+  updateSelRect();
+}
+function updateSelRect(){
+  const r=document.getElementById('topo-selrect');
+  if(!r)return;
+  const g=topoSelId?document.querySelector('#topo-svgwrap [data-el="'+topoSelId+'"]'):null;
+  if(!g){r.style.display='none';return;}
+  r.setAttribute('x',g.dataset.selx);r.setAttribute('y',g.dataset.sely);
+  r.setAttribute('width',g.dataset.selw);r.setAttribute('height',g.dataset.selh);
+  r.style.display='';
+}
+function renderTopoEditor(){
+  const box=$('topo-editor');
+  const el=state.network.find(x=>x.id===topoSelId);
+  if(!el){box.innerHTML='';return;}
+  const distributed=el.type==='tl'||el.type==='stubO'||el.type==='stubS';
+  box.innerHTML=`<span class="small">#${state.network.indexOf(el)+1} ${elName(el.type)}</span>`+
+    `<input type="number" data-te="val" value="${elValueStr(el)}" step="any">`+
+    `<span class="small">${elUnitLabel(el)}</span>`+
+    (distributed?`<span class="small">Zc</span><input type="number" data-te="tlZ0" value="${el.tlZ0}" step="any">`+
+      `<span class="small">@</span><input type="text" data-te="refF" value="${freqValStr(el.refF||1e8)}" title="${senT('refFreqTip')}">`:'')+
+    `<button class="btn mini" data-te="left" title="${senT('moveL')}">◀</button>`+
+    `<button class="btn mini" data-te="right" title="${senT('moveR')}">▶</button>`+
+    `<button class="btn mini" data-te="del" title="${senT('delOne')}" style="color:#b91c1c">✕</button>`;
+}
+function topoEditorApply(e,fromInput){
+  const el=state.network.find(x=>x.id===topoSelId);if(!el)return;
+  const f=e.target.dataset.te;if(!f)return;
+  if(f==='val'){const v=parseFloat(e.target.value);if(isFinite(v))el.val=elValToSI(el,v);}
+  else if(f==='tlZ0'){const v=parseFloat(e.target.value);if(isFinite(v)&&v>0)el.tlZ0=v;}
+  else if(f==='refF'){if(fromInput)return;const hz=parseFreqToHz(e.target.value);if(isFinite(hz)&&hz>0)el.refF=hz;}
+  else return;
+  netChanged();
+  if(!fromInput)renderTopoEditor();
+}
+$('topo-editor').addEventListener('input',e=>topoEditorApply(e,true));
+$('topo-editor').addEventListener('change',e=>topoEditorApply(e,false));
+$('topo-editor').addEventListener('click',e=>{
+  const f=e.target.dataset.te;
+  if(!['left','right','del'].includes(f))return;
+  const idx=state.network.findIndex(x=>x.id===topoSelId);
+  if(idx<0)return;
+  if(f==='del'){state.network.splice(idx,1);topoSelId=null;if(tuner.editElId!=null&&!state.network.some(e=>e.id===tuner.editElId))tuner.editElId=null;}
+  else if(f==='left'&&idx>0)[state.network[idx-1],state.network[idx]]=[state.network[idx],state.network[idx-1]];
+  else if(f==='right'&&idx<state.network.length-1)[state.network[idx+1],state.network[idx]]=[state.network[idx],state.network[idx+1]];
+  else return;
+  netChanged();renderTopoEditor();
+});
+let valueEditor=null;
+function closeValueEditor(commit){
+  if(!valueEditor)return;
+  const{inp,elId}=valueEditor;
+  valueEditor=null;
+  const v=parseFloat(inp.value);
+  inp.remove();
+  if(commit&&isFinite(v)){
+    const el=state.network.find(x=>x.id===elId);
+    if(el)el.val=elValToSI(el,v);
+    netChanged();renderTopoEditor();
+  }
+}
+function openValueEditor(elId,textEl){
+  const el=state.network.find(x=>x.id===elId);
+  if(!el)return;
+  closeValueEditor(false);
+  topoSelId=elId;renderTopoEditor();
+  const wrap=$('topo-svgwrap'),br=wrap.getBoundingClientRect(),tr=textEl.getBoundingClientRect();
+  const inp=document.createElement('input');
+  inp.type='text';inp.value=elValueStr(el);
+  inp.className='inline-edit';
+  inp.title=senT('valEditTitle')+elUnitLabel(el)+senT('valEditTitle2');
+  inp.style.left=Math.max(2,tr.left-br.left+tr.width/2-36)+'px';
+  inp.style.top=Math.min(tr.bottom-br.top+2,(wrap.parentElement.clientHeight||150)-28)+'px';
+  wrap.appendChild(inp);
+  valueEditor={inp,elId};
+  inp.focus();inp.select();
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter')closeValueEditor(true);
+    else if(e.key==='Escape')closeValueEditor(false);
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur',()=>closeValueEditor(true));
+}
+$('topo-svgwrap').addEventListener('click',e=>{
+  if(e.target.classList&&e.target.classList.contains('valtext')){
+    openValueEditor(+e.target.dataset.val,e.target);
+    return;
+  }
+  const ins=e.target.closest('[data-ins]');
+  if(ins){openPicker(+ins.dataset.ins);return;}
+  const elG=e.target.closest('[data-el]');
+  if(elG){
+    topoSelId=+elG.dataset.el;updateSelRect();renderTopoEditor();
+    tuner.editElId=topoSelId;tuner.active=true;   /* 点选器件即可在圆图上拖动调它 */
+    updateTunerUI();
+    requestDraw();
+  }
+});
+$('topo-svgwrap').addEventListener('dblclick',e=>{
+  const elG=e.target.closest('[data-el]');
+  if(!elG)return;
+  const idx=state.network.findIndex(x=>x.id===+elG.dataset.el);
+  if(idx<0)return;
+  const nm=elName(state.network[idx].type);
+  state.network.splice(idx,1);
+  topoSelId=null;closeValueEditor(false);
+  if(tuner.editElId!=null&&!state.network.some(e=>e.id===tuner.editElId))tuner.editElId=null;
+  netChanged();renderTopoEditor();
+  toast(senT('deletedTo')+nm);
+});
+function openPicker(idx){
+  pickIdx=idx;
+  const pop=$('pickpop'),body=$('topo-body');
+  pop.innerHTML=Object.keys(ELEMS).map(t=>`<button data-pk="${t}">${elName(t)}</button>`).join('')+
+    `<button data-pk="_x" style="grid-column:1/-1;color:#b91c1c">${senT('cancel')}</button>`;
+  pop.style.display='grid';
+  const br=body.getBoundingClientRect();
+  const gr=body.querySelector(`[data-ins="${idx}"]`).getBoundingClientRect();
+  const x=Math.max(4,Math.min(gr.left-br.left-30,br.width-238));
+  const y=Math.max(4,Math.min(gr.bottom-br.top+4,br.height-pop.offsetHeight-4));
+  pop.style.left=x+'px';pop.style.top=y+'px';
+}
+$('pickpop').addEventListener('click',e=>{
+  const t=e.target.dataset.pk;if(!t)return;
+  $('pickpop').style.display='none';
+  if(t==='_x')return;
+  const el={id:nid(),type:t,...EL_DEFAULTS[t]};
+  if(t==='tl'||t==='stubO'||t==='stubS')el.refF=defFreqHz();
+  state.network.splice(Math.min(pickIdx,state.network.length),0,el);
+  topoSelId=el.id;
+  tuner.editElId=el.id;tuner.active=true;   /* 新器件进入调谐：圆图手柄实时拖它的值 */
+  netChanged();renderTopoEditor();
+});
+document.addEventListener('pointerdown',e=>{
+  const pop=$('pickpop');
+  if(pop.style.display==='grid'&&!e.target.closest('#pickpop')&&!e.target.closest('[data-ins]'))pop.style.display='none';
+},true);
+function applyLayout(){
+  const L=state.layout||(state.layout={sbW:430,topoH:190});
+  const appW=$('app').clientWidth||window.innerWidth;
+  $('sidebar').style.width=Math.max(260,Math.min(L.sbW,Math.max(260,appW-340)))+'px';
+  $('topo').style.height=L.topoH+'px';
+}
+function refreshLockUI(){
+  const b=$('btn-lock');if(!b)return;
+  b.textContent=state.viewLocked?'🔒':'🔓';
+  b.title=state.viewLocked?senT('lockOn'):senT('lockOff');
+  b.style.background=state.viewLocked?'var(--accent)':TC('btnBg');
+  b.style.color=state.viewLocked?'#fff':'var(--text)';
+  $('btn-zin').disabled=!!state.viewLocked;
+  $('btn-zout').disabled=!!state.viewLocked;
+}
+
+/* ---------- 交互调谐 UI ---------- */
+function renderTunerDpSel(){
+  const sel=$('tuner-dpsel');
+  const items=state.dps.filter(d=>d.visible);
+  sel.innerHTML=items.map(dp=>{
+    const zStr=`${fmt(dp.re)}${dp.im>=0?'+':'-'}j${fmt(Math.abs(dp.im))}Ω`;
+    const tag=dp.auto?`${dp.name}·${senT('autoDP')}`:`DP #${dpNum(dp)}`;
+    return `<option value="${dp.id}" ${dp.id===tuner.startDpId?'selected':''}>${tag}（${fmtFreqShort(dp.f)}，${zStr}）</option>`;
+  }).join('')||'<option value="">'+senT('noDpOpt')+'</option>';
+}
+function updateTunerUI(){
+  renderTunerDpSel();
+  updatePalette();
+  updateModePill();
+  const sdp=tunerStartDp();
+  const st=$('tuner-status');
+  if(tuner.active&&sdp){
+    const tag=sdp.auto?sdp.name+senT('autoTag'):'DP #'+dpNum(sdp);
+    let elLine='';
+    if(tuner.editElId!=null){
+      const ei=state.network.findIndex(e=>e.id===tuner.editElId);
+      if(ei>=0)elLine='<br>'+senT('tuningEl')+'<b>#'+(ei+1)+' '+elName(state.network[ei].type)+'</b>'+senT('dragToEdit');
+    }
+    st.innerHTML=`${senT('stStart')}${tag}　Z = <span class="mono">${fmtZohm(C(sdp.re/state.z0,sdp.im/state.z0),state.z0)}</span>　f = ${fmtFreq(sdp.f)}${elLine}<br>`+
+      `${senT('stActiveHint')}`;
+  }else{
+    st.textContent=senT('stInactive');
+  }
+  const tip=tunerTip();
+  if(tip){updateTunerLive(tip.tipG,null);}
+  else{$('tuner-live').style.display='none';}
+}
+function updateTunerLive(g,val){
+  const box=$('tuner-live');
+  const z=g2z(g);
+  let head;
+  if(val&&drag&&drag.kind==='tune'){
+    const d=describeValue(drag.type,val.value,val.ok);
+    head=`<div class="v ${d.ok?'':'bad'}">${elName(drag.type)}　${d.html}</div>`;
+  }else{
+    head=`<div class="v" style="font-size:13px">${senT('curPoint')}</div>`;
+  }
+  box.innerHTML=head+
+    `<div class="z">Z = ${fmtZohm(z,state.z0)}　Y = ${fmtYmS(z,state.z0)}</div>`+
+    `<div class="z">Γ = ${fmt(cabs(g))} ∠ ${fmt(carg(g)*180/Math.PI)}°　VSWR = ${fmt(vswrOf(z))}　RL = ${fmt(rlOf(z))} dB　Q = ${fmt(qOf(z))}</div>`;
+  box.style.display='block';
+}
+function updatePalette(){
+  document.querySelectorAll('#tuner-palette [data-tune]').forEach(b=>{
+    b.classList.toggle('armed',tuner.armed===b.dataset.tune);
+  });
+}
+function updateModePill(){
+  const pill=$('modepill');
+  if(tuner.pickMode){pill.textContent=senT('pickStartPill');pill.style.display='block';}
+  else if(tuner.armed){pill.textContent=senT('armedPillA')+elName(tuner.armed)+senT('armedPillB');pill.style.display='block';}
+  else pill.style.display='none';
+}
+document.querySelectorAll('#tuner-palette [data-tune]').forEach(b=>{
+  b.onclick=()=>{
+    if(!tuner.active||!tunerStartDp()){
+      const dp=state.dps.find(d=>d.visible&&!d.auto);
+      if(dp){
+        tuner.startDpId=dp.id;tuner.active=true;
+        setTunerFreq(dp.f);
+      }else{toast(senT('addDpFirst'));return;}
+    }
+    tuner.armed=b.dataset.tune;
+    updatePalette();updateModePill();
+  };
+});
+$('btn-tuner-pick').onclick=()=>{tuner.pickMode=true;updateModePill();toast(senT('clickToPlace'));};
+function chooseTunerStart(dp){
+  tuner.startDpId=dp.id;tuner.active=true;tuner.armed=null;tuner.pickMode=false;
+  tuner.editElId=null;selectedDpId=dp.id;
+  setTunerFreq(dp.f);
+  recomputeNet();   /* 重建新起始 DP 的轨迹缓存 */
+  renderTopo();updateTunerUI();requestDraw();save();
+}
+$('btn-tuner-fromdp').onclick=()=>{
+  const id=+$('tuner-dpsel').value;
+  const dp=state.dps.find(d=>d.id===id&&d.visible);
+  if(!dp){toast(senT('selectDpOne'));return;}
+  chooseTunerStart(dp);
+  toast(senT('startFromToast')+dpNum(dp)+senT('startFromToast2'));
+};
+/* 下拉框切换起始 DP 即时生效 */
+$('tuner-dpsel').addEventListener('change',()=>{
+  const id=+$('tuner-dpsel').value;
+  const dp=state.dps.find(d=>d.id===id&&d.visible);
+  if(!dp)return;
+  chooseTunerStart(dp);
+  toast(senT('switchedTo')+dpNum(dp));
+});
+$('btn-tuner-undo').onclick=()=>{
+  if(!state.network.length){toast(senT('nothingToUndo'));return;}
+  state.network.pop();topoSelId=null;
+  if(tuner.editElId!=null&&!state.network.some(e=>e.id===tuner.editElId))tuner.editElId=null;
+  netChanged();updateTunerUI();
+};
+$('btn-tuner-clear').onclick=()=>{
+  tuner.active=false;tuner.armed=null;tuner.startDpId=null;tuner.editElId=null;
+  state.network=[];topoSelId=null;   /* 同步清空拓扑与圆图上的匹配数据（负载 DP 保留） */
+  netChanged();updateTunerUI();$('tuner-live').style.display='none';$('automatch-results').innerHTML='';
+  toast(senT('clearedToast'));
+};
+$('tuner-f').addEventListener('change',e=>{
+  const hz=parseFreqToHz(e.target.value);
+  if(isFinite(hz)&&hz>0){setTunerFreq(hz);requestDraw();save();}
+  else e.target.value=freqValStr(tuner.f);
+});
+/* E 系列标准值：E96=1%，E24=5% */
+const E96=[1.00,1.02,1.05,1.06,1.09,1.13,1.15,1.18,1.21,1.24,1.27,1.30,1.33,1.37,1.40,1.43,1.47,1.50,1.54,1.58,1.62,1.65,1.69,1.74,1.78,1.82,1.87,1.91,1.96,2.00,2.05,2.10,2.15,2.21,2.26,2.32,2.37,2.43,2.49,2.55,2.61,2.67,2.74,2.80,2.87,2.94,3.01,3.09,3.16,3.24,3.32,3.40,3.48,3.57,3.65,3.74,3.83,3.92,4.02,4.12,4.22,4.32,4.42,4.53,4.64,4.75,4.87,4.99,5.11,5.23,5.36,5.49,5.62,5.76,5.90,6.04,6.19,6.34,6.49,6.65,6.81,6.98,7.15,7.32,7.50,7.68,7.87,8.06,8.25,8.45,8.66,8.87,9.09,9.31,9.53,9.76];
+const E24=[1.0,1.1,1.2,1.3,1.5,1.6,1.8,2.0,2.2,2.4,2.7,3.0,3.3,3.6,3.9,4.3,4.7,5.1,5.6,6.2,6.8,7.5,8.2,9.1];
+function nearestE(v,series){
+  if(!isFinite(v)||v<=0)return null;
+  const e=Math.floor(Math.log10(v)),m=v/Math.pow(10,e);
+  let best=series[0],bd=Infinity;
+  for(const x of series){const d=Math.abs(x-m);if(d<bd){bd=d;best=x;}}
+  const val=best*Math.pow(10,e);
+  return{val,dev:(val-v)/v*100};
+}
+function stdRecLine(els){
+  const r1=[],r2=[];
+  for(const e of els){
+    const u=(e.type==='serL'||e.type==='shL')?'H':'F';
+    const s96=nearestE(e.val,E96),s24=nearestE(e.val,E24);
+    r1.push(fmtComp(s96.val,u)+'('+fmt(s96.dev,2)+'%)');
+    r2.push(fmtComp(s24.val,u));
+  }
+  return senT('stdLine')+r1.join(' · ')+senT('stdLine2')+r2.join(' · ');
+}
+function runMatch(kind){
+  let zl=null,f=null,startId=null,sufK=0;
+  const sdp=tunerStartDp();
+  if(tuner.active&&sdp){
+    zl=C(sdp.re/state.z0,sdp.im/state.z0);f=sdp.f;startId=sdp.id;
+    sufK=tunerStartIndex(sdp);   /* 只替换起始节点之后的链段 */
+  }
+  else{
+    const dp=state.dps.find(d=>d.visible&&!d.auto);
+    if(dp){zl=C(dp.re/state.z0,dp.im/state.z0);f=dp.f;startId=dp.id;}
+  }
+  const box=$('automatch-results');
+  if(!zl){box.innerHTML='<div class="small">'+senT('pickStartFirst')+'</div>';return;}
+  const name={L:'L',pi:'π',t:'T'}[kind];
+  if(kind!=='L'&&cabs(zl)<0.02){box.innerHTML='<div class="small">'+senT('alreadyMatched')+name+senT('noNeedNet')+'</div>';return;}
+  let sols=[];
+  if(kind==='L')sols=autoMatch(zl,state.z0,f).map(x=>({els:x.els,q:x.q,sub:'Q = '+fmt(x.q)}));
+  else sols=piTMatch(zl,f,state.z0,kind).map(x=>({els:x.els,q:x.q,sub:'Q ≈ '+fmt(x.q)+' · rv='+fmt(x.rt)}));
+  if(!sols.length){box.innerHTML='<div class="small">'+senT('noSolA')+name+senT('noSolB')+'</div>';return;}
+  const wasStd=!!(box.querySelector('#ck-std-apply')&&box.querySelector('#ck-std-apply').checked);
+  box.innerHTML='<div class="small" style="margin-top:4px">'+name+''+senT('solsHeader')+'　<label style="cursor:pointer;white-space:nowrap"><input type="checkbox" id="ck-std-apply" '+(wasStd?'checked':'')+'">'+senT('useStd')+'</label>：</div>'+
+    sols.map((s,i)=>`<button class="opt" data-sol="${i}">${elsLabel(s.els)}<br><span class="q">${s.sub}　${senT('solN')}${i+1}</span><br><span class="q">${stdRecLine(s.els)}</span></button>`).join('');
+  box.querySelectorAll('[data-sol]').forEach(btn=>{
+    btn.onclick=()=>{
+      const s=sols[+btn.dataset.sol];
+      /* 起始节点之前的前级器件保留，只替换其后链段；起始切回根负载 */
+      const prefix=state.network.slice(0,sufK);
+      const stdBox=box.querySelector('#ck-std-apply');
+      const els2=(stdBox&&stdBox.checked)?s.els.map(e=>({...e,val:nearestE(e.val,E96).val})):s.els;
+      state.network=prefix.concat(els2.map(e=>({id:nid(),...e})));
+      /* 起始保持用户所选（显示不跳回根负载） */
+      tuner.startDpId=startId;
+      setTunerFreq(f);
+      tuner.active=true;tuner.armed=null;topoSelId=null;tuner.editElId=null;
+      selectedDpId=startId;
+      netChanged();updateTunerUI();
+      toast(senT('appliedA')+name+senT('appliedB')+(+btn.dataset.sol+1)+(sufK?(senT('appliedC')+sufK+senT('appliedD')):''));
+    };
+  });
+}
+$('btn-automatch').onclick=()=>runMatch('L');
+$('btn-match-pi').onclick=()=>runMatch('pi');
+$('btn-match-t').onclick=()=>runMatch('t');
+
+/* 广义 L 支路：归一化负载 zn → 归一化实数目标 rt；返回并联/串联两元件（归一化电纳/电抗） */
+function lBranches(zn,rt){
+  const res=[],yl=cinv(zn);
+  const g=yl.re,r=zn.re;
+  if(g>1e-9){   /* 并联在前：等 g 圆 ∩ r=rt 圆 */
+    const ia=circX(-g/(1+g),1/(1+g),rt/(1+rt),1/(1+rt));
+    if(ia)for(const ga of ia){
+      if(cabs(ga)>0.9995)continue;
+      const za=g2z(ga);
+      if(Math.abs(za.re-rt)>Math.max(1e-4,1e-3*rt))continue;
+      const b=cinv(za).im-yl.im,x=-za.im;
+      if(Math.abs(b)<1e-9||Math.abs(x)<1e-9)continue;
+      res.push({order:'ps',items:[{k:'p',v:b},{k:'s',v:x}]});
+    }
+  }
+  if(r>1e-9){   /* 串联在前：等 r 圆 ∩ g=1/rt 圆 */
+    const gt=1/rt;
+    const ib=circX(r/(1+r),1/(1+r),-gt/(1+gt),1/(1+gt));
+    if(ib)for(const gb of ib){
+      if(cabs(gb)>0.9995)continue;
+      const zb=g2z(gb);
+      const yzb=cinv(zb);
+      if(Math.abs(yzb.re-gt)>Math.max(1e-4,2e-2*gt))continue;
+      const x=zb.im-zn.im,b=-yzb.im;
+      if(Math.abs(b)<1e-9||Math.abs(x)<1e-9)continue;
+      res.push({order:'sp',items:[{k:'s',v:x},{k:'p',v:b}]});
+    }
+  }
+  return res;
+}
+/* 归一化电抗/电纳 → 物理器件 */
+function xbToEls(items,w,z0){
+  return items.map(it=>it.k==='s'
+    ?(it.v>0?{type:'serL',val:z0*it.v/w}:{type:'serC',val:-1/(w*z0*it.v)})
+    :(it.v>0?{type:'shC',val:it.v/(w*z0)}:{type:'shL',val:z0/(w*(-it.v))}));
+}
+function elsLabel(els){
+  return els.map(e=>{
+    const nm=(e.type==='serL'||e.type==='serC')?senT('serShort'):senT('shShort');
+    const u=(e.type==='serL'||e.type==='shL')?'H':'F';
+    return nm+' '+fmtComp(e.val,u);
+  }).join(' ＋ ');
+}
+/* π 型 / T 型：两节 L 经虚拟电阻 rv 级联（π 合并中间串联，T 合并中间并联） */
+function piTMatch(zn,f,z0,kind){
+  const w=2*Math.PI*f;
+  const rts=kind==='pi'?[0.05,0.08,0.12,0.2,0.3,0.45,0.7,0.9]:[1.2,1.5,2,3,5,8,15];
+  let res=[];
+  for(const rt of rts){
+    let items=null;
+    if(kind==='pi'){
+      const l1=lBranches(zn,rt).find(b=>b.order==='ps');
+      const l2=lBranches({re:rt,im:0},1).find(b=>b.order==='sp');
+      if(!l1||!l2)continue;
+      const mid=l1.items[1].v+l2.items[0].v;
+      if(Math.abs(mid)<1e-7)continue;
+      items=[{k:'p',v:l1.items[0].v},{k:'s',v:mid},{k:'p',v:l2.items[1].v}];
+    }else{
+      const l1=lBranches(zn,rt).find(b=>b.order==='sp');
+      const l2=lBranches({re:rt,im:0},1).find(b=>b.order==='ps');
+      if(!l1||!l2)continue;
+      const mid=l1.items[1].v+l2.items[0].v;
+      if(Math.abs(mid)<1e-7)continue;
+      items=[{k:'s',v:l1.items[0].v},{k:'p',v:mid},{k:'s',v:l2.items[1].v}];
+    }
+    const els=xbToEls(items,w,z0);
+    if(!els.every(e=>isFinite(e.val)&&e.val>1e-15&&e.val<1e-3))continue;
+    /* 仿真验证：整链末端必须落到 z=1（50Ω） */
+    let z=zn;
+    for(const e of els){const s=sampleElement(z,e,f,z0);z=s.zEnd;if(!isFinite(z.re))break;}
+    if(!isFinite(z.re)||Math.hypot(z.re-1,z.im)>0.02)continue;
+    const q=Math.sqrt(Math.abs(kind==='pi'?1/rt-1:rt-1));
+    res.push({els,q,rt});
+  }
+  const seen=new Set();
+  res=res.filter(r=>{const k=r.els.map(e=>e.type+':'+e.val.toPrecision(4)).join('|');if(seen.has(k))return false;seen.add(k);return true;});
+  res.sort((a,b)=>a.q-b.q);
+  return res.slice(0,6);
+}
+
+/* ---------- 设置绑定 ---------- */
+$('in-z0').addEventListener('change',e=>{
+  const v=parseFloat(e.target.value);
+  if(isFinite(v)&&v>0)state.z0=v;else e.target.value=state.z0;
+  recomputeNet();recomputeTuner();renderDPTable();updateTunerUI();save();requestDraw();
+});
+$('in-frequnit').addEventListener('change',e=>{
+  state.freqUnit=e.target.value;
+  $('tuner-funit').textContent=state.freqUnit;
+  renderDPTable();renderTopo();
+  $('tuner-f').value=freqValStr(tuner.f);
+  $('in-deffreq').value=state.defFreq;   /* 单位切换后两处频率显示同步刷新 */
+  save();
+});
+$('in-deffreq').addEventListener('change',e=>{
+  const hz=parseFreqToHz(e.target.value);
+  if(isFinite(hz)&&hz>0){
+    state.defFreq=parseFloat((hz/(UNIT_MULT[state.freqUnit]||1)).toPrecision(6));
+    e.target.value=state.defFreq;
+    setTunerFreq(hz);   /* 与调谐“设计频率”同步 */
+  }else e.target.value=state.defFreq;
+});
+$('in-charttype').addEventListener('change',e=>{state.chartType=e.target.value;save();requestDraw();});
+$('in-grid').addEventListener('change',e=>{state.grid=e.target.value;save();requestDraw();});
+$('ck-vswr').addEventListener('change',e=>{state.showVSWR=e.target.checked;save();requestDraw();});
+$('in-vswrlist').addEventListener('change',e=>{state.vswrList=e.target.value;save();requestDraw();});
+$('ck-q').addEventListener('change',e=>{state.showQ=e.target.checked;save();requestDraw();});
+$('in-qlist').addEventListener('change',e=>{state.qList=e.target.value;save();requestDraw();});
+$('ck-flabels').addEventListener('change',e=>{state.showFreqLabels=e.target.checked;save();requestDraw();});
+$('ck-traj').addEventListener('change',e=>{state.showTraj=e.target.checked;save();requestDraw();});
+
+/* ---------- 导入导出 ---------- */
+$('btn-export-png').onclick=()=>{
+  cv.toBlob(blob=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='smith-chart.png';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  });
+};
+$('btn-export-json').onclick=()=>{
+  const blob=new Blob([JSON.stringify(exportState(),null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='smith-chart-state.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+};
+$('btn-import-json').onclick=()=>$('file-json').click();
+$('file-json').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      applyState(JSON.parse(rd.result));
+      toast(senT('stateImported'));
+    }catch(err){toast(senT('importFail')+err.message);}
+  };
+  rd.readAsText(file);
+  e.target.value='';
+});
+$('btn-copylink').onclick=()=>{
+  const enc=btoa(unescape(encodeURIComponent(JSON.stringify(exportState()))));
+  const url=location.href.split('#')[0]+'#s='+enc;
+  const done=()=>toast(senT('linkCopied')+Math.round(url.length/1024)+senT('linkCopied2'));
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done,()=>fallback());
+  }else fallback();
+  function fallback(){
+    const ta=document.createElement('textarea');
+    ta.value=url;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done();}catch(e){prompt(senT('copyManual'),url);}
+    document.body.removeChild(ta);
+  }
+};
+$('btn-clearall').onclick=()=>{
+  if(!confirm(senT('confirmClear')))return;
+  state.dps=[];state.traces=[];state.network=[];
+  tuner.active=false;tuner.startDpId=null;tuner.armed=null;tuner.pickMode=false;
+  selectedDpId=null;topoSelId=null;
+  netChanged();updateTunerUI();
+  $('automatch-results').innerHTML='';$('tuner-live').style.display='none';
+};
+
+/* ---------- Touchstone 导入 ---------- */
+$('btn-import-s1p').onclick=()=>$('file-s1p').click();
+$('file-s1p').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const r=parseTouchstone(rd.result);
+      if(!r||!r.freqs.length){toast(senT('s1pFail'));return;}
+      /* 抽样至 ≤201 点 */
+      const n=r.freqs.length,step=Math.max(1,Math.ceil(n/201));
+      const ids=[];
+      for(let i=0;i<n;i+=step){
+        const s11=r.s[i];
+        const z=cdiv(cadd(ONE,s11),csub(ONE,s11));
+        const dp={id:nid(),f:r.freqs[i],
+          re:(isFinite(z.re)?z.re:1e6)*r.refR,
+          im:(isFinite(z.im)?z.im:0),
+          visible:true,color:PALETTE[state.dps.length%PALETTE.length]};
+        state.dps.push(dp);ids.push(dp.id);
+      }
+      state.traces.push({id:nid(),name:file.name.replace(/\.\w+$/,''),dpIds:ids,
+        color:'#475569',visible:true});
+      netChanged();renderTunerDpSel();
+      toast(senT('s1pOk')+ids.length+senT('s1pOk2')+fmtFreq(r.freqs[0])+senT('s1pOk3')+fmtFreq(r.freqs[n-1])+senT('s1pOk4'));
+    }catch(err){toast(senT('importFail')+err.message);}
+  };
+  rd.readAsText(file);
+  e.target.value='';
+});
+function parseTouchstone(text){
+  const freqs=[],s=[];
+  let mult=1e9,fmt='RI',refR=50;
+  for(let raw of text.split(/\r?\n/)){
+    const line=raw.trim();
+    if(!line)continue;
+    if(line[0]==='!')continue;
+    if(line[0]==='#'){
+      const t=line.toUpperCase().split(/\s+/);
+      for(const k of t){
+        if(k==='HZ')mult=1;else if(k==='KHZ')mult=1e3;else if(k==='MHZ')mult=1e6;else if(k==='GHZ')mult=1e9;
+        else if(k==='RI'||k==='MA'||k==='DB')fmt=k;
+        else if(/^\d+(\.\d+)?$/.test(k))refR=parseFloat(k);
+      }
+      continue;
+    }
+    const tok=line.split(/\s+/).map(Number).filter(x=>!isNaN(x));
+    if(tok.length<3)continue;
+    const f=tok[0]*mult;
+    let a=tok[1],b=tok[2];
+    if(fmt==='MA'){const m=a,ph=b*Math.PI/180;a=m*Math.cos(ph);b=m*Math.sin(ph);}
+    else if(fmt==='DB'){const m=Math.pow(10,a/20),ph=b*Math.PI/180;a=m*Math.cos(ph);b=m*Math.sin(ph);}
+    freqs.push(f);s.push(C(a,b));
+  }
+  if(!freqs.length)return null;
+  return{freqs,s,refR};
+}
+
+/* ============================ 持久化 ============================ */
+function exportState(){
+  return{v:1,uid,state,
+    tuner:{active:tuner.active,f:tuner.f,startDpId:tuner.startDpId}};
+}
+function applyState(obj){
+  if(!obj||typeof obj!=='object')throw new Error(senT('fmtErr'));
+  const st=obj.state||obj;
+  state=Object.assign({
+    z0:50,freqUnit:'MHz',defFreq:100,chartType:'zy',grid:'medium',
+    showVSWR:false,vswrList:'1.5, 2, 3',showQ:false,qList:'0.3, 0.5, 1',
+    showFreqLabels:true,showTraj:true,dps:[],traces:[],network:[],
+  },st);
+  uid=(obj.uid||0)+1;
+  for(const dp of state.dps)uid=Math.max(uid,dp.id+1);
+  for(const t of state.traces)uid=Math.max(uid,t.id+1);
+  for(const el of state.network)uid=Math.max(uid,el.id+1);
+  tuner.active=false;tuner.armed=null;tuner.pickMode=false;tuner.startDpId=null;tuner.editElId=null;
+  if(obj.tuner){
+    tuner.f=obj.tuner.f||tuner.f;
+    tuner.startDpId=(typeof obj.tuner.startDpId==='number')?obj.tuner.startDpId:null;
+    tuner.active=!!obj.tuner.active;
+  }
+  syncSettingsUI();
+  renderDPFields();renderDPTable();renderTunerDpSel();updateTunerUI();
+  topoSelId=null;applyLayout();refreshLockUI();renderTopo();
+  tuner.f=state.defFreq?parseFreqToHz(String(state.defFreq))||tuner.f:tuner.f;
+  recomputeNet();recomputeTuner();requestDraw();
+}
+const LS_KEY='smith_chart_offline_v1';
+function save(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify(exportState()));}catch(e){}
+}
+function load(){
+  try{
+    const h=location.hash;
+    if(h.startsWith('#s=')){
+      applyState(JSON.parse(decodeURIComponent(escape(atob(h.slice(3))))));
+      return;
+    }
+    const ls=localStorage.getItem(LS_KEY);
+    if(ls){applyState(JSON.parse(ls));return;}
+  }catch(e){}
+  /* 演示数据 */
+  state.dps=[{id:nid(),f:100e6,re:25,im:25,visible:true,color:PALETTE[0]}];
+  selectedDpId=state.dps[0].id;
+  syncSettingsUI();renderDPFields();renderDPTable();renderTunerDpSel();updateTunerUI();
+  topoSelId=null;renderTopo();recomputeNet();requestDraw();
+}
+function syncSettingsUI(){
+  $('in-z0').value=state.z0;
+  $('in-frequnit').value=state.freqUnit;
+  $('tuner-funit').textContent=state.freqUnit;
+  $('in-deffreq').value=state.defFreq;
+  $('tuner-f').value=freqValStr(tuner.f);
+  $('in-charttype').value=state.chartType;
+  $('in-grid').value=state.grid;
+  $('ck-vswr').checked=state.showVSWR;
+  $('in-vswrlist').value=state.vswrList;
+  $('ck-q').checked=state.showQ;
+  $('in-qlist').value=state.qList;
+  $('ck-flabels').checked=state.showFreqLabels;
+  $('ck-traj').checked=state.showTraj;
+  renderDPTable();
+}
+
+/* ============================ 杂项 ============================ */
+let toastTimer=null;
+function toast(msg){
+  const t=$('toast');
+  t.textContent=msg;t.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.style.display='none',2600);
+}
+/* 自检 */
+(function selfTest(){
+  const g=z2g(C(1,0));
+  console.assert(Math.abs(g.re)<1e-12&&Math.abs(g.im)<1e-12,'z=1 -> Γ=0');
+  const z=g2z(C(0.3,-0.4));
+  console.assert(isFinite(z.re)&&isFinite(z.im),'Γ->z 有限');
+  const s=sampleElement(C(0.5,0),{type:'shC',val:253.3e-12},100e6,50);
+  console.assert(isFinite(s.zEnd.re)&&isFinite(s.zEnd.im),'shC 采样有限');
+})();
+/* 测试钩子 */
+window.__smith={get state(){return state;},tuner,get netCache(){return netCache;},
+  get view(){return view;},tunerTip,tunerStartDp,tunerStartIndex,currentDp,rootDp,matchDp,
+  autoMatch,sampleElement,z2g,g2z,projectOnConstraint,valueFromMotion,recomputeNet,recomputeTuner,cinv,
+  renderTopo,netChanged};
+
+/* ============================ 启动 ============================ */
+applyLayout();
+refreshLockUI();
+resizeCanvas();
+fitView();
+tuner.f=100e6;
+load();
+renderDPFields();
+requestDraw();
+
+/* ============================ 分隔条拖动 ============================ */
+(function(){
+  let sp=null;
+  const vs=$('vsplit'),hs=$('hsplit');
+  vs.addEventListener('pointerdown',e=>{sp={kind:'v'};vs.setPointerCapture(e.pointerId);e.preventDefault();});
+  hs.addEventListener('pointerdown',e=>{sp={kind:'h'};hs.setPointerCapture(e.pointerId);e.preventDefault();});
+  window.addEventListener('pointermove',e=>{
+    if(!sp)return;
+    if(sp.kind==='v'){
+      const appW=$('app').clientWidth;
+      const w=Math.max(260,Math.min(appW-340,appW-e.clientX-7));
+      state.layout.sbW=w;$('sidebar').style.width=w+'px';
+    }else{
+      const L=$('left').getBoundingClientRect();
+      const h=Math.max(80,Math.min(L.height-240,L.bottom-e.clientY-7));
+      state.layout.topoH=h;$('topo').style.height=h+'px';
+    }
+  });
+  window.addEventListener('pointerup',()=>{if(sp){sp=null;save();}});
+})();
+new ResizeObserver(()=>{resizeCanvas();if(viewDefault)fitView();requestDraw();}).observe($('chartwrap'));
+$('btn-lock').onclick=()=>{state.viewLocked=!state.viewLocked;refreshLockUI();save();toast(state.viewLocked?senT('locked'):senT('unlocked'));};
+
+/* ===== 新增：主题切换（暗色/亮色）与语言切换 ===== */
+(function(){
+  const tbtn = document.getElementById("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    localStorage.setItem("smith-theme", t);
+    localStorage.setItem("gyboy-theme", t);
+    tbtn.textContent = t === "dark" ? "\u2600" : "\ud83c\udf19";
+    renderTopo(); requestDraw();
+  }
+  tbtn.onclick = function() {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  };
+  const saved = localStorage.getItem("smith-theme") || localStorage.getItem("gyboy-theme");
+  if (saved === "dark") applyTheme("dark");
+  const lt = document.getElementById("langToggle");
+  lt.onclick = function() {
+    localStorage.setItem("sen-lang", senLang() === "zh" ? "en" : "zh");
+    applySenLang();
+  };
+  applySenLang();
+})();
+
+</script>
+</body>
+</html>
