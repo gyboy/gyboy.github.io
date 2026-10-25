@@ -513,7 +513,7 @@ function matchDp(){
 function currentDp(){
   if(selectedDpId!=null){
     const d=state.dps.find(x=>x.id===selectedDpId);
-    if(d)return d.auto?(state.dps.find(x=>x.id===d.rootId&&!d.auto)||d):d;
+    if(d)return d.auto?(state.dps.find(x=>x.id===d.rootId&&!x.auto)||d):d;
   }
   return rootDp()||state.dps.find(d=>!d.auto&&d.visible)||null;
 }
